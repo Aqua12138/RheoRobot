@@ -1,6 +1,11 @@
 import numpy as np
 from fluidlab.optimizer.optim import *
 from fluidlab.utils.misc import is_on_server
+import onnx
+import torch
+from onnx2pytorch import ConvertModel
+import torch.optim as optim
+
 if not is_on_server():
     try:
         from pynput import keyboard, mouse
@@ -364,4 +369,100 @@ class TransportingPolicy(TrainablePolicy):
         super(TransportingPolicy, self).__init__(*args, **kwargs)
         self.trainable = np.full(self.comp_actions_shape[0], False)
         self.trainable[:-1] = True
+
+class TorchGatheringPolicy(TrainablePolicy):
+    def __init__(self, *args, **kwargs):
+        super(TorchGatheringPolicy, self).__init__(*args, **kwargs)
+        # # fluidlab policy
+        # self.trainable = np.full(self.comp_actions_shape[0], False)
+        # self.status = np.full(self.comp_actions_shape[0], 0)
+        # self.stage_step = [50, 65, 105, 120] # 120 为一个动作周期
+        # for i in range(self.horizon):
+        #     if i % self.stage_step[3] < self.stage_step[0]:
+        #         self.trainable[i] = True
+        #         self.status[i] = 0 # moving
+        #     elif self.stage_step[0] <= i % self.stage_step[3] < self.stage_step[1]:
+        #         self.status[i] = 1 # up
+        #     elif self.stage_step[1] <= i % self.stage_step[3] < self.stage_step[2]:
+        #         self.status[i] = 2 # moving back
+        #     elif self.stage_step[2] <= i % self.stage_step[3]:
+        #         self.status[i] = 3 # down
+
+        # my policy
+        onnx_model_path = "/home/zhx/Project/results/test/Collection/Collection-999880.onnx"
+        onnx_model = onnx.load(onnx_model_path)
+        self.pytorch_model = ConvertModel(onnx_model)
+
+        # self.pytorch_model = torch.load('/home/zhx/PycharmProjects/fluids/FluidLab_3_28/fluidlab/optimizer/model/gatheringEasy/model.pth')
+        # self.pytorch_model.train()
+        print(self.pytorch_model)
+
+        self.optimizer = optim.Adam(self.pytorch_model.parameters(), lr=1e-5)
+
+        # for torch
+        self.actions_v_torch = 840 * [None]
+        self.actions_p_torch = [None]
+
+    def get_action_v(self, i, agent=None, update=False):
+        # fluidlab
+        # if update:
+        #     # policy
+        #     if self.status[i] == 1:
+        #         self.actions_v[i] = np.array([0, 0.008, 0])
+        #     elif self.status[i] == 2:
+        #         action = (self.actions_p - agent.rigid.latest_pos.to_numpy()[0]) / (self.stage_step[2]- (i % self.stage_step[3]))
+        #         action[1] = 0
+        #         self.actions_v[i] = action
+        #     elif self.status[i] == 3:
+        #         self.actions_v[i] = np.array([0, -0.008, 0])
+        #     # elif self.status[i] == 0:
+        #     #     self.actions_v[i] = np.array([0.003, 0, 0])
+
+        # My
+        if update:
+            # get agent state
+            obs = np.array(agent.get_state(i))
+            obs = torch.from_numpy(obs).float()
+            # 与actions_v同步维护
+            self.actions_v_torch[i] = self.pytorch_model(obs)[4][0]
+
+            # 维护执行动作
+            action = self.pytorch_model(obs)[4][0].clone()
+            action_numpy = action.detach().numpy()
+            action_numpy = action_numpy * 0.008
+            action_numpy[0] *= 1
+            action_numpy[1] *= 1
+            action_numpy[2] *= 0
+            self.actions_v[i] = np.array([action_numpy[0], action_numpy[1], action_numpy[2]])
+
+        return self.actions_v[i]
+
+    def optimize(self, grads, loss_info):
+        # for step in [720, 600, 480, 360, 240, 120]:
+        #     if loss_info['temporal_range'] > step:
+        #         self.freeze_till = loss_info['temporal_range'] - 120
+        #         self.trainable[:self.freeze_till] = False
+        #         print(f'feeze till {self.freeze_till}')
+        #         break
+
+        # # fluidlab
+        # assert grads.shape == self.comp_actions_shape
+        # grads[np.logical_not(self.trainable)] = 0
+        # if self.fix_dim is not None:
+        #     grads[:, self.fix_dim] = 0
+        #
+        # new_comp_actions = self.optim.step(self.comp_actions, grads)
+        # self.actions_p = new_comp_actions[-1]
+        # self.actions_v = new_comp_actions[:-1].clip(*self.action_range)
+
+        # # My
+        assert grads.shape == self.comp_actions_shape
+        if self.fix_dim is not None:
+            grads[:, self.fix_dim] = 0
+        self.optimizer.zero_grad()  # 清空梯度，准备下一轮优化
+        for i in range(self.horizon):
+            self.actions_v_torch[i].backward(torch.tensor(grads[i], dtype=torch.float32))
+
+        # self.actions[i].backward(grads)
+        self.optimizer.step()  # 执行参数更新
 

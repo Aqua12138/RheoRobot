@@ -7,6 +7,9 @@ import taichi as ti
 from time import time
 from scipy import ndimage
 from fluidlab.configs.macros import *
+
+import sys
+sys.path.append("/home/zhx/PycharmProjects/FluidLab/fluidlab/fluidengine/renderers/gl_renderer_src/")
 from .gl_renderer_src import flex_renderer
 import fluidlab.utils.geom as geom_utils
 import fluidlab.utils.misc as misc_utils

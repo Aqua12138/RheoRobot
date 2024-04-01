@@ -7,18 +7,19 @@ from time import time
 from scipy import ndimage
 from fluidlab.configs.macros import *
 
+
 @ti.data_oriented
 class GGUIRenderer:
-    def __init__(self, 
-        res=(640, 640),
-        camera_pos=(0.5, 2.5, 3.5),
-        camera_lookat=(0.5, 0.5, 0.5),
-        fov=30,
-        mode='human',
-        particle_radius=0.0075,
-        lights=[{'pos': (0.5, 1.5, 0.5), 'color': (0.5, 0.5, 0.5)},
-                {'pos': (0.5, 1.5, 1.5), 'color': (0.5, 0.5, 0.5)}],
-    ):
+    def __init__(self,
+                 res=(640, 640),
+                 camera_pos=(0.5, 2.5, 3.5),
+                 camera_lookat=(0.5, 0.5, 0.5),
+                 fov=30,
+                 mode='human',
+                 particle_radius=0.0075,
+                 lights=[{'pos': (0.5, 1.5, 0.5), 'color': (0.5, 0.5, 0.5)},
+                         {'pos': (0.5, 1.5, 1.5), 'color': (0.5, 0.5, 0.5)}],
+                 ):
         self.res = res
         self.camera_pos = np.array(camera_pos)
         self.camera_lookat = np.array(camera_lookat)
@@ -34,17 +35,17 @@ class GGUIRenderer:
         self.particle_radius = particle_radius
         self.frame = ti.Vector.field(3, dtype=ti.f32, shape=(9,))
         self.frames = [ti.Vector.field(3, dtype=ti.f32, shape=(200,)),
-                        ti.Vector.field(3, dtype=ti.f32, shape=(200,)),
-                        ti.Vector.field(3, dtype=ti.f32, shape=(200,)),
-                        ti.Vector.field(3, dtype=ti.f32, shape=(200,)),
-                        ti.Vector.field(3, dtype=ti.f32, shape=(200,)),
-                        ti.Vector.field(3, dtype=ti.f32, shape=(200,)),
-                        ti.Vector.field(3, dtype=ti.f32, shape=(200,)),
-                        ti.Vector.field(3, dtype=ti.f32, shape=(200,)),
-                        ti.Vector.field(3, dtype=ti.f32, shape=(200,)),
-                        ti.Vector.field(3, dtype=ti.f32, shape=(200,)),
-                        ti.Vector.field(3, dtype=ti.f32, shape=(200,)),
-                        ti.Vector.field(3, dtype=ti.f32, shape=(200,))]
+                       ti.Vector.field(3, dtype=ti.f32, shape=(200,)),
+                       ti.Vector.field(3, dtype=ti.f32, shape=(200,)),
+                       ti.Vector.field(3, dtype=ti.f32, shape=(200,)),
+                       ti.Vector.field(3, dtype=ti.f32, shape=(200,)),
+                       ti.Vector.field(3, dtype=ti.f32, shape=(200,)),
+                       ti.Vector.field(3, dtype=ti.f32, shape=(200,)),
+                       ti.Vector.field(3, dtype=ti.f32, shape=(200,)),
+                       ti.Vector.field(3, dtype=ti.f32, shape=(200,)),
+                       ti.Vector.field(3, dtype=ti.f32, shape=(200,)),
+                       ti.Vector.field(3, dtype=ti.f32, shape=(200,)),
+                       ti.Vector.field(3, dtype=ti.f32, shape=(200,))]
         self.color_target = None
 
     def add_light(self, pos, color=(0.5, 0.5, 0.5)):
@@ -60,18 +61,18 @@ class GGUIRenderer:
         self.particles_color.from_numpy(particles['color'].astype(np.float32))
 
         for i in range(200):
-            self.frames[0][i] = ti.Vector([0., 0., 0.]) + i/200 * ti.Vector([1., 0., 0.])
-            self.frames[1][i] = ti.Vector([0., 0., 0.]) + i/200 * ti.Vector([0., 1., 0.])
-            self.frames[2][i] = ti.Vector([0., 0., 0.]) + i/200 * ti.Vector([0., 0., 1.])
-            self.frames[3][i] = ti.Vector([1., 1., 1.]) + i/200 * ti.Vector([-1., 0., 0.])
-            self.frames[4][i] = ti.Vector([1., 1., 1.]) + i/200 * ti.Vector([0., -1., 0.])
-            self.frames[5][i] = ti.Vector([1., 1., 1.]) + i/200 * ti.Vector([0., 0., -1.])
-            self.frames[6][i] = ti.Vector([0., 1., 0.]) + i/200 * ti.Vector([1., 0., 0.])
-            self.frames[7][i] = ti.Vector([0., 1., 0.]) + i/200 * ti.Vector([0., 0., 1.])
-            self.frames[8][i] = ti.Vector([1., 0., 0.]) + i/200 * ti.Vector([0., 1., 0.])
-            self.frames[9][i] = ti.Vector([1., 0., 0.]) + i/200 * ti.Vector([0., 0., 1.])
-            self.frames[10][i] = ti.Vector([0., 0., 1.]) + i/200 * ti.Vector([1., 0., 0.])
-            self.frames[11][i] = ti.Vector([0., 0., 1.]) + i/200 * ti.Vector([0., 1., 0.])
+            self.frames[0][i] = ti.Vector([0., 0., 0.]) + i / 200 * ti.Vector([1., 0., 0.])
+            self.frames[1][i] = ti.Vector([0., 0., 0.]) + i / 200 * ti.Vector([0., 1., 0.])
+            self.frames[2][i] = ti.Vector([0., 0., 0.]) + i / 200 * ti.Vector([0., 0., 1.])
+            self.frames[3][i] = ti.Vector([1., 1., 1.]) + i / 200 * ti.Vector([-1., 0., 0.])
+            self.frames[4][i] = ti.Vector([1., 1., 1.]) + i / 200 * ti.Vector([0., -1., 0.])
+            self.frames[5][i] = ti.Vector([1., 1., 1.]) + i / 200 * ti.Vector([0., 0., -1.])
+            self.frames[6][i] = ti.Vector([0., 1., 0.]) + i / 200 * ti.Vector([1., 0., 0.])
+            self.frames[7][i] = ti.Vector([0., 1., 0.]) + i / 200 * ti.Vector([0., 0., 1.])
+            self.frames[8][i] = ti.Vector([1., 0., 0.]) + i / 200 * ti.Vector([0., 1., 0.])
+            self.frames[9][i] = ti.Vector([1., 0., 0.]) + i / 200 * ti.Vector([0., 0., 1.])
+            self.frames[10][i] = ti.Vector([0., 0., 1.]) + i / 200 * ti.Vector([1., 0., 0.])
+            self.frames[11][i] = ti.Vector([0., 0., 1.]) + i / 200 * ti.Vector([0., 1., 0.])
 
         # timer
         self.t = time()
@@ -121,9 +122,9 @@ class GGUIRenderer:
             x = xz_radius * np.sin(rad)
             z = xz_radius * np.cos(rad)
             new_camera_pos = np.array([
-                    x + self.camera_lookat[0],
-                    self.camera_pos[1],
-                    z + self.camera_lookat[2]]) 
+                x + self.camera_lookat[0],
+                self.camera_pos[1],
+                z + self.camera_lookat[2]])
             self.camera.position(*new_camera_pos)
 
         self.scene.set_camera(self.camera)
@@ -133,13 +134,12 @@ class GGUIRenderer:
         self.window = ti.ui.Window('FluidLab', self.res, vsync=True, show_window=show_window)
 
         self.canvas = self.window.get_canvas()
-        self.canvas.set_background_color((1,1,1))
+        self.canvas.set_background_color((1, 1, 1))
         self.scene = ti.ui.Scene()
         self.camera = ti.ui.Camera()
         self.camera.position(*self.camera_pos)
         self.camera.lookat(*self.camera_lookat)
         self.camera.fov(self.fov)
-
 
     def render_frame(self, mode='human', x_target=None, t=0):
         if self.uninit:
@@ -151,7 +151,7 @@ class GGUIRenderer:
         # # reference frame
         # for i in range(12):
         #     self.scene.particles(self.frames[i], color=COLOR[FRAME], radius=self.particle_radius*0.5)
-            
+
         # particles
         if self.sim.has_particles:
             state = self.sim.get_state_render(self.sim.cur_substep_local)
@@ -162,7 +162,8 @@ class GGUIRenderer:
             if x_target is not None:
                 if self.color_target is None:
                     self.color_target = ti.Vector.field(4, ti.f32, x_target.shape)
-                    self.color_target.from_numpy(np.repeat(np.array([COLOR[TARGET]]).astype(np.float32), x_target.shape[0], axis=0))
+                    self.color_target.from_numpy(
+                        np.repeat(np.array([COLOR[TARGET]]).astype(np.float32), x_target.shape[0], axis=0))
                 self.scene.particles(x_target, per_vertex_color=self.color_target, radius=self.particle_radius)
 
         # statics
@@ -179,7 +180,8 @@ class GGUIRenderer:
 
         # smoke
         if self.sim.smoke_field is not None:
-            self.scene.particles(self.sim.smoke_field.vis_particles, per_vertex_color=self.sim.smoke_field.vis_particles_c, radius=1.0/128)
+            self.scene.particles(self.sim.smoke_field.vis_particles,
+                                 per_vertex_color=self.sim.smoke_field.vis_particles_c, radius=1.0 / 128)
 
         for light in self.lights:
             self.scene.point_light(pos=light['pos'], color=light['color'])
@@ -203,8 +205,3 @@ class GGUIRenderer:
             self.update_fps()
             # print(f'===> GGUIRenderer: {self.fps:.2f} FPS')
             return img
-
-
-
-
-

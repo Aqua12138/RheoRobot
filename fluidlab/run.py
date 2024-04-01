@@ -56,7 +56,7 @@ def main():
         replay_policy(env, path=args.path)
     else:
         logger = Logger(args.exp_name)
-        env = gym.make(cfg.EXP.env_name, seed=cfg.EXP.seed, loss=True, loss_type='diff', renderer_type=args.renderer_type)
+        env = gym.make(cfg.EXP.env_name, seed=cfg.EXP.seed, loss=True, loss_type='default', renderer_type=args.renderer_type)
         solve_policy(env, logger, cfg.SOLVER)
 
 if __name__ == '__main__':
