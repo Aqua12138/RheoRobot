@@ -8,7 +8,7 @@ from fluidlab.configs.macros import *
 from fluidlab.optimizer.policies import *
 from fluidlab.fluidengine.taichi_env import TaichiEnv
 from fluidlab.fluidengine.losses import *
-# from fluidlab.fluidengine.sensor import *
+from fluidlab.fluidengine.sensor import *
 class GatheringSandEnv(FluidEnv):
     def __init__(self, version, loss=True, loss_type='diff', seed=None,  renderer_type='GGUI'):
 
@@ -20,7 +20,7 @@ class GatheringSandEnv(FluidEnv):
         self.target_file           = None
         self._n_obs_ptcls_per_body = 500
         self.loss                  = loss
-        self.loss_type             = "default"
+        self.loss_type             = loss_type
         self.action_range          = np.array([-0.003, 0.003])
         self.renderer_type         = renderer_type
 
@@ -54,8 +54,8 @@ class GatheringSandEnv(FluidEnv):
     def setup_bodies(self):
         self.taichi_env.add_body(
             type='cube',
-            lower=(0.15, 0.6, 0.45),
-            upper=(0.35, 0.65, 0.55),
+            lower=(0.15, 0.6, 0.35),
+            upper=(0.35, 0.65, 0.65),
             material=ICECREAM,
         )
 
@@ -98,28 +98,28 @@ class GatheringSandEnv(FluidEnv):
             weights={'dist': 0.1}
         )
 
-    # def setup_sensors(self):
-    #     # setup sensor and build
-    #     gridsensor2d_cfg = {"SensorName": "cup_gridsensor2d",
-    #                         "CellScale": (0.05, 0.05),
-    #                         "GridSize": (20, 20),
-    #                         "RotateWithAgent": False,
-    #                         "ObservationStacks": 1,
-    #                         "GlobalPosition": [0.5, 0.5, 0.5]}
-    #
-    #     gridsensor3d_cfg = {"SensorName": "cup_gridsensor3d",
-    #                         "CellArc": 2,
-    #                         "LatAngleNorth": 90,
-    #                         "LatAngleSouth": 90,
-    #                         "LonAngle": 180,
-    #                         "MaxDistance": 0.5,
-    #                         "MinDistance": 0,
-    #                         "DistanceNormalization": 1,
-    #                         "ObservationStacks": 1}
-    #
-    #     self.agent.add_sensor(sensor_handle=GridSensor3D, sensor_cfg=gridsensor3d_cfg)
-    #     # self.agent.add_sensor(sensor_handle=GridSensor2D, sensor_cfg=gridsensor2d_cfg)
-    #     self.agent.add_sensor(sensor_handle=VectorSensor)
+    def setup_sensors(self):
+        # setup sensor and build
+        gridsensor2d_cfg = {"SensorName": "cup_gridsensor2d",
+                            "CellScale": (0.05, 0.05),
+                            "GridSize": (20, 20),
+                            "RotateWithAgent": False,
+                            "ObservationStacks": 1,
+                            "GlobalPosition": [0.5, 0.5, 0.5]}
+
+        gridsensor3d_cfg = {"SensorName": "cup_gridsensor3d",
+                            "CellArc": 2,
+                            "LatAngleNorth": 90,
+                            "LatAngleSouth": 90,
+                            "LonAngle": 180,
+                            "MaxDistance": 0.5,
+                            "MinDistance": 0,
+                            "DistanceNormalization": 1,
+                            "ObservationStacks": 1}
+
+        self.agent.add_sensor(sensor_handle=GridSensor3D, sensor_cfg=gridsensor3d_cfg)
+        # self.agent.add_sensor(sensor_handle=GridSensor2D, sensor_cfg=gridsensor2d_cfg)
+        self.agent.add_sensor(sensor_handle=VectorSensor)
 
     def trainable_policy(self, optim_cfg, init_range):
         return TorchGatheringPolicy(optim_cfg, init_range, self.agent.action_dim, self.horizon_action, self.action_range)

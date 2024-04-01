@@ -389,7 +389,7 @@ class TorchGatheringPolicy(TrainablePolicy):
         #         self.status[i] = 3 # down
 
         # my policy
-        onnx_model_path = "/home/zhx/Project/results/test/Collection/Collection-9984.onnx"
+        onnx_model_path = "/home/zhx/Project/results/ma-fluidlab15/Collection/Collection-17499896.onnx"
         onnx_model = onnx.load(onnx_model_path)
         self.pytorch_model = ConvertModel(onnx_model)
 
@@ -421,17 +421,21 @@ class TorchGatheringPolicy(TrainablePolicy):
         # My
         if update:
             # get agent state
-            obs = np.array(agent.get_state(i))
-            obs = torch.from_numpy(obs).float()
+            # obs = np.array(agent.get_state(i))
+            # obs = torch.from_numpy(obs).float()
+            # get visual state
+            obs = agent.get_obs()
+            obs_visual = torch.from_numpy(obs[0].transpose(0, 3, 1, 2)).float()
+            obs_vector = torch.from_numpy(obs[1]).float()
             # 与actions_v同步维护
-            self.actions_v_torch[i] = self.pytorch_model(obs)[4][0]
+            self.actions_v_torch[i] = self.pytorch_model(obs_visual, obs_vector)[4][0]
 
             # 维护执行动作
             action = self.actions_v_torch[i].clone()
             action_numpy = action.detach().numpy()
-            action_numpy = action_numpy * 0.008
+            action_numpy = action_numpy * 0.35 * 2e-3
             action_numpy[0] *= -1
-            action_numpy[1] *= -1
+            action_numpy[1] *= 1
             action_numpy[2] *= 1
             action_numpy[3] *= -1
             action_numpy[4] *= -1
@@ -466,7 +470,7 @@ class TorchGatheringPolicy(TrainablePolicy):
         self.optimizer.zero_grad()  # 清空梯度，准备下一轮优化
         for i in range(self.horizon):
             adjusted_grads = torch.tensor([-grads[i][2],  # Reorder and adjust signs as per actions
-                                           -grads[i][0],
+                                           grads[i][0],
                                            grads[i][1],
                                            -grads[i][4],  # Reorder and adjust signs as per actions
                                            -grads[i][3],

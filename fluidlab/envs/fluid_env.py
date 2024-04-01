@@ -45,6 +45,8 @@ class FluidEnv(gym.Env):
             
         self.taichi_env.build()
         self._init_state = self.taichi_env.get_state()
+
+        self.setup_sensors()
         
         print(f'===>  {type(self).__name__} built successfully.')
 
@@ -80,6 +82,9 @@ class FluidEnv(gym.Env):
         self.taichi_env.setup_renderer()
 
     def setup_loss(self):
+        pass
+
+    def setup_sensors(self):
         pass
 
     def gym_misc(self):

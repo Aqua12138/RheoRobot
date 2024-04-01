@@ -1,4 +1,4 @@
-type: AgentRigid
+type: AgentSensor
 effectors:
   - type: Rigid
     params:
@@ -10,10 +10,10 @@ effectors:
     mesh:
       file: plate.obj
       scale: (0.2, 0.2, 0.2)
-      euler: (0.0, 90, 0.0)
+      euler: (0.0, 0.0, 0.0)
       material: PLATE
       softness: 100.0
     boundary:
       type: cube
-      lower: (0, 0.65, 0)
+      lower: (0, 0.5, 0)
       upper: (0.5, 1, 1)
