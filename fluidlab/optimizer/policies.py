@@ -424,7 +424,7 @@ class TorchGatheringPolicy(TrainablePolicy):
             obs = np.array(agent.get_state(i))
             obs = torch.from_numpy(obs).float()
             # 与actions_v同步维护
-            self.actions_v_torch[i] = self.pytorch_model(obs)[2][0]
+            self.actions_v_torch[i] = self.pytorch_model(obs)[4][0]
 
             # 维护执行动作
             action = self.actions_v_torch[i].clone()
@@ -432,7 +432,7 @@ class TorchGatheringPolicy(TrainablePolicy):
             action_numpy = action_numpy * 0.008
             action_numpy[0] *= -1
             action_numpy[1] *= 1
-            action_numpy[2] *= 1
+            action_numpy[2] *= -1
             self.actions_v[i] = np.array([action_numpy[1], action_numpy[2], action_numpy[0]])
 
         return self.actions_v[i]
@@ -463,7 +463,7 @@ class TorchGatheringPolicy(TrainablePolicy):
         for i in range(self.horizon):
             adjusted_grads = torch.tensor([-grads[i][2],  # Reorder and adjust signs as per actions
                                            grads[i][0],
-                                           grads[i][1],], dtype=torch.float32)
+                                           -grads[i][1],], dtype=torch.float32)
             self.actions_v_torch[i].backward(adjusted_grads)
 
         # self.actions[i].backward(grads)
