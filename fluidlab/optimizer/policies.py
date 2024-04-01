@@ -424,16 +424,16 @@ class TorchGatheringPolicy(TrainablePolicy):
             obs = np.array(agent.get_state(i))
             obs = torch.from_numpy(obs).float()
             # 与actions_v同步维护
-            self.actions_v_torch[i] = self.pytorch_model(obs)[4][0]
+            self.actions_v_torch[i] = self.pytorch_model(obs)[2][0]
 
             # 维护执行动作
-            action = self.pytorch_model(obs)[4][0].clone()
+            action = self.actions_v_torch[i].clone()
             action_numpy = action.detach().numpy()
             action_numpy = action_numpy * 0.008
-            action_numpy[0] *= 1
+            action_numpy[0] *= -1
             action_numpy[1] *= 1
-            action_numpy[2] *= 0
-            self.actions_v[i] = np.array([action_numpy[0], action_numpy[1], action_numpy[2]])
+            action_numpy[2] *= 1
+            self.actions_v[i] = np.array([action_numpy[1], action_numpy[2], action_numpy[0]])
 
         return self.actions_v[i]
 
@@ -461,7 +461,10 @@ class TorchGatheringPolicy(TrainablePolicy):
             grads[:, self.fix_dim] = 0
         self.optimizer.zero_grad()  # 清空梯度，准备下一轮优化
         for i in range(self.horizon):
-            self.actions_v_torch[i].backward(torch.tensor(grads[i], dtype=torch.float32))
+            adjusted_grads = torch.tensor([-grads[i][2],  # Reorder and adjust signs as per actions
+                                           grads[i][0],
+                                           grads[i][1],], dtype=torch.float32)
+            self.actions_v_torch[i].backward(adjusted_grads)
 
         # self.actions[i].backward(grads)
         self.optimizer.step()  # 执行参数更新
