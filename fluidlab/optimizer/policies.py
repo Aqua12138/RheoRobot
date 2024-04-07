@@ -400,8 +400,10 @@ class TorchGatheringPolicy(TrainablePolicy):
         self.optimizer = optim.Adam(self.pytorch_model.parameters(), lr=1e-5)
 
         # for torch
-        self.actions_v_torch = 840 * [None]
+        self.actions_v_torch = 2000 * [None]
         self.actions_p_torch = [None]
+
+        self.clip_norm = 1
 
     def get_action_v(self, i, agent=None, update=False):
         # fluidlab
@@ -469,13 +471,16 @@ class TorchGatheringPolicy(TrainablePolicy):
             grads[:, self.fix_dim] = 0
         self.optimizer.zero_grad()  # 清空梯度，准备下一轮优化
         for i in range(self.horizon):
-            adjusted_grads = torch.tensor([-grads[i][2],  # Reorder and adjust signs as per actions
+            adjusted_grad = torch.tensor([-grads[i][2],  # Reorder and adjust signs as per actions
                                            grads[i][0],
                                            grads[i][1],
                                            -grads[i][4],  # Reorder and adjust signs as per actions
                                            -grads[i][3],
                                            grads[i][5]], dtype=torch.float32)
-            self.actions_v_torch[i].backward(adjusted_grads)
+            grad_norm = np.linalg.norm(adjusted_grad)
+            if grad_norm > self.clip_norm:
+                adjusted_grad = adjusted_grad * (self.clip_norm / grad_norm)
+            self.actions_v_torch[i].backward(adjusted_grad)
 
         # self.actions[i].backward(grads)
         self.optimizer.step()  # 执行参数更新

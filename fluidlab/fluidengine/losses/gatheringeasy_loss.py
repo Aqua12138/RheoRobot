@@ -69,6 +69,7 @@ class GatheringEasyLoss(Loss):
     def compute_dist_loss(self, s, f):
         self.compute_dist_loss_kernel(s, f)
 
+
     def compute_dist_loss_grad(self, s, f):
         self.compute_dist_loss_kernel.grad(s, f)
 
@@ -78,8 +79,12 @@ class GatheringEasyLoss(Loss):
             if self.particle_used[f, p] and self.particle_mat[p] == self.matching_mat:
                 self.dist_loss[s] += ti.abs(self.particle_x[f, p][0] - 0.8)
 
+
     @ti.kernel
     def sum_up_loss_kernel(self, s: ti.i32):
+        # if s==0:
+        #     self.step_loss[s] = 0
+
         self.step_loss[s] += self.dist_loss[s] * self.dist_weight
 
     @ti.kernel
@@ -89,7 +94,13 @@ class GatheringEasyLoss(Loss):
 
     def get_final_loss_grad(self):
         self.compute_total_loss_kernel.grad(self.temporal_range[0], self.temporal_range[1])
+        # self.debug_grad(self.temporal_range[0], self.temporal_range[1])
 
+    @ti.kernel
+    def debug_grad(self, s_start: ti.i32, s_end: ti.i32):
+        for s in range(s_start, s_end):
+            print("step loss grad:", self.step_loss.grad[s])
+    #
     def expand_temporal_range(self):
         if self.temporal_range_type == 'expand':
             loss_improved = (self.best_loss - self.total_loss[None])
