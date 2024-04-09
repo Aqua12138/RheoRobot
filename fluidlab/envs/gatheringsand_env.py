@@ -28,7 +28,7 @@ class GatheringSandEnv(FluidEnv):
         self.taichi_env = TaichiEnv(
             dim=3,
             particle_density=1e6,
-            max_substeps_local=50,
+            max_substeps_local=500,
             gravity=(0.0, -9.8, 0.0),
             horizon=self.horizon,
         )
@@ -54,8 +54,8 @@ class GatheringSandEnv(FluidEnv):
     def setup_bodies(self):
         self.taichi_env.add_body(
             type='cube',
-            lower=(0.15, 0.6, 0.35),
-            upper=(0.35, 0.65, 0.65),
+            lower=(0.2, 0.6, 0.45),
+            upper=(0.3, 0.65, 0.55),
             material=WATER,
         )
 
@@ -112,7 +112,7 @@ class GatheringSandEnv(FluidEnv):
                             "LatAngleNorth": 90,
                             "LatAngleSouth": 90,
                             "LonAngle": 180,
-                            "MaxDistance": 0.5,
+                            "MaxDistance": 1,
                             "MinDistance": 0,
                             "DistanceNormalization": 1,
                             "ObservationStacks": 1}
@@ -124,6 +124,6 @@ class GatheringSandEnv(FluidEnv):
     def trainable_policy(self, optim_cfg, init_range):
         return TorchGatheringPolicy(optim_cfg, init_range, self.agent.action_dim, self.horizon_action, self.action_range)
 
-    # def get_obs(self):
-    #     obs = self.agent.get_obs()
-    #     return obs
+    def get_obs(self):
+        obs = self.agent.get_obs()
+        return obs

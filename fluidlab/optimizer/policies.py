@@ -136,6 +136,7 @@ class MousePolicy_vxz(MousePolicy):
 class TrainablePolicy:
     def __init__(self, optim_cfg, init_range, action_dim, horizon, action_range, fix_dim=None):
         self.horizon = horizon
+        self.init_range = init_range
         self.action_dim = action_dim
         self.actions_v = np.random.uniform(init_range.v[0], init_range.v[1], size=(horizon, action_dim))
         self.actions_p = np.random.uniform(init_range.p[0], init_range.p[1], size=(action_dim))
@@ -389,7 +390,7 @@ class TorchGatheringPolicy(TrainablePolicy):
         #         self.status[i] = 3 # down
 
         # my policy
-        onnx_model_path = "/home/zhx/Project/results/ma-fluidlab15/Collection/Collection-17499896.onnx"
+        onnx_model_path = "/home/zhx/Project/results/2024_4_7_1647/Collection/Collection-4999936.onnx"
         onnx_model = onnx.load(onnx_model_path)
         self.pytorch_model = ConvertModel(onnx_model)
 
@@ -400,7 +401,7 @@ class TorchGatheringPolicy(TrainablePolicy):
         self.optimizer = optim.Adam(self.pytorch_model.parameters(), lr=1e-5)
 
         # for torch
-        self.actions_v_torch = 2000 * [None]
+        self.actions_v_torch = 4000 * [None]
         self.actions_p_torch = [None]
 
         self.clip_norm = 1
@@ -430,20 +431,24 @@ class TorchGatheringPolicy(TrainablePolicy):
             obs_visual = torch.from_numpy(obs[0].transpose(0, 3, 1, 2)).float()
             obs_vector = torch.from_numpy(obs[1]).float()
             # 与actions_v同步维护
+            a = self.pytorch_model(obs_visual, obs_vector)
             self.actions_v_torch[i] = self.pytorch_model(obs_visual, obs_vector)[4][0]
+            # filename = "/home/zhx/Project/FluidRobotic/fluidlab/tmp/obs/play/frame_{:03d}.npy".format(i)
+            # np.save(filename, obs_visual)
+            # print("save", i)
 
             # 维护执行动作
             action = self.actions_v_torch[i].clone()
             action_numpy = action.detach().numpy()
-            action_numpy = action_numpy * 0.35 * 2e-3
+            action_numpy = action_numpy * 0.35 * 2e-2
             action_numpy[0] *= -1
             action_numpy[1] *= 1
             action_numpy[2] *= 1
-            action_numpy[3] *= -1
-            action_numpy[4] *= -1
-            action_numpy[5] *= 1
+            action_numpy[3] *= -3
+            # action_numpy[4] *= -1
+            # action_numpy[5] *= 1
             self.actions_v[i] = np.array([action_numpy[1], action_numpy[2], action_numpy[0],
-                                          action_numpy[4], action_numpy[3], action_numpy[5]])
+                                          0, action_numpy[3], 0])
 
         return self.actions_v[i]
 
@@ -467,16 +472,13 @@ class TorchGatheringPolicy(TrainablePolicy):
 
         # # My
         assert grads.shape == self.comp_actions_shape
-        if self.fix_dim is not None:
-            grads[:, self.fix_dim] = 0
         self.optimizer.zero_grad()  # 清空梯度，准备下一轮优化
         for i in range(self.horizon):
             adjusted_grad = torch.tensor([-grads[i][2],  # Reorder and adjust signs as per actions
                                            grads[i][0],
-                                           grads[i][1],
-                                           -grads[i][4],  # Reorder and adjust signs as per actions
+                                           grads[i][1],# Reorder and adjust signs as per actions
                                            -grads[i][3],
-                                           grads[i][5]], dtype=torch.float32)
+                                           ], dtype=torch.float32)
             grad_norm = np.linalg.norm(adjusted_grad)
             if grad_norm > self.clip_norm:
                 adjusted_grad = adjusted_grad * (self.clip_norm / grad_norm)
@@ -485,3 +487,6 @@ class TorchGatheringPolicy(TrainablePolicy):
         # self.actions[i].backward(grads)
         self.optimizer.step()  # 执行参数更新
 
+    def get_actions_p(self):
+        self.actions_p = np.random.uniform(self.init_range.p[0], self.init_range.p[1], size=(self.action_dim))
+        return self.actions_p

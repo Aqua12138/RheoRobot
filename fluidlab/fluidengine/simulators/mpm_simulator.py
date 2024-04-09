@@ -28,7 +28,7 @@ class MPMSimulator:
         self.max_substeps_local  = max_substeps_local
         self.max_substeps_global = max_substeps_global
         self.horizon             = horizon
-        self.n_substeps          = int(2e-3 / self.dt)
+        self.n_substeps          = int(2e-2 / self.dt)
         self.max_steps_local     = int(self.max_substeps_local / self.n_substeps)
 
         assert self.n_substeps * self.horizon < self.max_substeps_global

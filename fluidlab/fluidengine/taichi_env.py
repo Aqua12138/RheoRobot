@@ -9,7 +9,7 @@ from fluidlab.fluidengine.bodies import Bodies
 from fluidlab.configs.macros import *
 from fluidlab.utils.misc import *
 
-ti.init(arch=ti.gpu, device_memory_GB=8, packed=True)
+
 # ti.init(arch=ti.gpu, device_memory_GB=10, packed=True)
 # ti.init(arch=ti.gpu, device_memory_GB=10, packed=True, debug=True)
 
@@ -24,7 +24,7 @@ class TaichiEnv:
             quality=1,
             particle_density=1e6,
             max_substeps_local=50,
-            max_substeps_global=100000,
+            max_substeps_global=1000000,
             horizon=100,
             ckpt_dest='disk',
             gravity=(0.0, -10.0, 0.0),

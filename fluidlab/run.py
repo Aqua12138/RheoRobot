@@ -10,6 +10,11 @@ from fluidlab.utils.logger import Logger
 from fluidlab.optimizer.solver import solve_policy
 from fluidlab.optimizer.recorder import record_target, replay_policy, replay_target
 from fluidlab.utils.config import load_config
+import taichi as ti
+# ti.init(arch=ti.gpu, device_memory_GB=20, packed=True)
+ti.init(arch=ti.cpu, packed=True)
+import multiprocessing as mp
+from stable_baselines3.common.env_util import make_vec_env
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -56,8 +61,25 @@ def main():
         replay_policy(env, path=args.path)
     else:
         logger = Logger(args.exp_name)
-        env = gym.make(cfg.EXP.env_name, seed=cfg.EXP.seed, loss=True, loss_type='default', renderer_type=args.renderer_type)
-        solve_policy(env, logger, cfg.SOLVER)
+        # env = gym.make(cfg.EXP.env_name, seed=cfg.EXP.seed, loss=True, loss_type='default', renderer_type=args.renderer_type)
+        # env2 = gym.make(cfg.EXP.env_name, seed=cfg.EXP.seed, loss=True, loss_type='default', renderer_type=args.renderer_type)
+
+        # 环境名称
+        env_name = cfg.EXP.env_name
+        # 创建四个并行环境
+        num_envs = 4
+
+        # 额外的环境参数
+        env_kwargs = {
+            "seed": cfg.EXP.seed,
+            "loss": True,
+            "loss_type": 'default',
+            "renderer_type": args.renderer_type
+        }
+
+        # 创建向量化环境，并传递额外参数
+        vec_env = make_vec_env(env_name, n_envs=num_envs, env_kwargs=env_kwargs)
+        solve_policy(vec_env, logger, cfg.SOLVER)
 
 if __name__ == '__main__':
     main()
