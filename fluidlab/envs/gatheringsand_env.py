@@ -9,20 +9,24 @@ from fluidlab.optimizer.policies import *
 from fluidlab.fluidengine.taichi_env import TaichiEnv
 from fluidlab.fluidengine.losses import *
 from fluidlab.fluidengine.sensor import *
+from gym import spaces
 class GatheringSandEnv(FluidEnv):
-    def __init__(self, version, loss=True, loss_type='diff', seed=None,  renderer_type='GGUI'):
+    def __init__(self, version, loss=True, loss_type='diff', seed=None,  renderer_type='GGUI', episode_length=1000, stochastic_init=False, device="cpu"):
 
         if seed is not None:
             self.seed(seed)
 
-        self.horizon               = 2000
-        self.horizon_action        = 2000
+        self.horizon               = episode_length
+        self.horizon_action        = episode_length
+        self.episode_length        = episode_length
         self.target_file           = None
         self._n_obs_ptcls_per_body = 500
         self.loss                  = loss
         self.loss_type             = loss_type
         self.action_range          = np.array([-0.003, 0.003])
         self.renderer_type         = renderer_type
+        self.stochastic_init       = stochastic_init
+        self.device                = device
 
         # create a taichi env
         self.taichi_env = TaichiEnv(
@@ -34,6 +38,18 @@ class GatheringSandEnv(FluidEnv):
         )
         self.build_env()
         self.gym_misc()
+    def gym_misc(self):
+        self.observation_space = spaces.Dict({
+            'gridsensor3': spaces.Box(low=0, high=1, shape=(90, 180, 1), dtype=np.float32),
+            'vector_obs': spaces.Box(low=0, high=1, shape=(7,), dtype=np.float32),
+            # 更多传感器可以继续添加
+        })
+        # if self.taichi_env.agent is not None:
+        #     self.action_space = Box(DTYPE_NP(self.action_range[0]), DTYPE_NP(self.action_range[1]), (self.taichi_env.agent.action_dim,), dtype=DTYPE_NP)
+        # else:
+        #     self.action_space = None
+        # self.observation_space = None
+        self.action_space = spaces.Box(low=0, high=1, shape=(6,), dtype=np.float32)
 
     def setup_agent(self):
         agent_cfg = CfgNode(new_allowed=True)
@@ -115,15 +131,62 @@ class GatheringSandEnv(FluidEnv):
                             "MaxDistance": 1,
                             "MinDistance": 0,
                             "DistanceNormalization": 1,
-                            "ObservationStacks": 1}
+                            "ObservationStacks": 1,
+                            "device": self.device,
+                            "n_particles": self.taichi_env.simulator.n_particles}
+        vector_cfg = {"device": self.device}
 
         self.agent.add_sensor(sensor_handle=GridSensor3D, sensor_cfg=gridsensor3d_cfg)
         # self.agent.add_sensor(sensor_handle=GridSensor2D, sensor_cfg=gridsensor2d_cfg)
-        self.agent.add_sensor(sensor_handle=VectorSensor)
+        self.agent.add_sensor(sensor_handle=VectorSensor, sensor_cfg=vector_cfg)
 
     def trainable_policy(self, optim_cfg, init_range):
         return TorchGatheringPolicy(optim_cfg, init_range, self.agent.action_dim, self.horizon_action, self.action_range)
 
-    def get_obs(self):
+    def get_sensor_obs(self):
         obs = self.agent.get_obs()
-        return obs
+        return {
+            'gridsensor3': obs[0],
+            'vector_obs': obs[1]
+        }
+
+    def reset(self):
+        if self.stochastic_init:
+            # randomize the init state
+            init_state = self._init_state
+            self.taichi_env.set_state(init_state['state'], grad_enabled=True)
+        else:
+            init_state = self._init_state
+            self.taichi_env.set_state(init_state['state'], grad_enabled=True)
+        return self.get_sensor_obs()
+
+    def step(self, action):
+        action *= 0.35 * 2e-2
+        action.clip(self.action_range[0], max=self.action_range[1])
+
+
+        self.taichi_env.step(action)
+
+        obs = self.get_sensor_obs()
+        reward = self._get_reward()
+
+        assert self.t <= self.horizon
+        if self.t == self.horizon:
+            done = True
+        else:
+            done = False
+
+        if np.isnan(reward):
+            reward = -1000
+            done = True
+
+        info = dict()
+        return obs, reward, done, info
+
+    def clear_grad(self):
+        self.taichi_env.reset_grad()
+
+    def initialize_trajectory(self):
+        self.taichi_env.reset_grad()
+        return self.get_sensor_obs()
+

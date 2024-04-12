@@ -43,7 +43,7 @@ class Solver:
             t2 = time()
 
             # backward pass
-            taichi_env.reset_grad()
+            taichi_env.reset_grad() # 1
             taichi_env.get_final_loss_grad()
 
             for i in range(cur_horizon-1, policy.freeze_till-1, -1):

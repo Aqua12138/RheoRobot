@@ -25,16 +25,13 @@ class AgentSensor(Agent):
         sensor_obs = []
         self.sim.update_gridSensor(reset=False)
         for sensor in self.sensors:
-            sensor_obs.append(np.asarray([sensor.get_obs()], dtype=np.float32))
+            sensor_obs.append(sensor.get_obs())
             # sensor_obs.append(np.asarray(group_obs, dtype=np.float32))
 
         return sensor_obs
 
     def add_sensor(self, sensor_handle, sensor_cfg=None):
-        if sensor_cfg == None:
-            sensor = sensor_handle(AgentGameObject=self)
-        else:
-            sensor = sensor_handle(**sensor_cfg, AgentGameObject=self, n_particles=self.sim.n_particles)
+        sensor = sensor_handle(**sensor_cfg, AgentGameObject=self)
         self.sensors.append(sensor)
 
 

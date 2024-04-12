@@ -9,7 +9,7 @@ from .gridSensor import GridSensor
 @ti.data_oriented
 class GridSensor3D(GridSensor):
     def __init__(self, SensorName, AgentGameObject, ObservationStacks, CellArc, LatAngleNorth, LatAngleSouth, LonAngle,
-                 MaxDistance, MinDistance, DistanceNormalization, n_particles):
+                 MaxDistance, MinDistance, DistanceNormalization, n_particles, device):
         super(GridSensor3D, self).__init__()
         '''
         SensorName: 传感器名字
@@ -42,6 +42,7 @@ class GridSensor3D(GridSensor):
         self.statics = self.m_AgentGameObject.sim.statics
         self.n_statics = self.m_AgentGameObject.sim.n_statics
         self.n_bodies = self.m_AgentGameObject.sim.n_bodies
+        self.device = device
         # self.agent_groups = self.m_AgentGameObject.sim.agent_groups
         self.dynamics = []
         # self.setup_dynamic_mesh()
@@ -265,9 +266,8 @@ class GridSensor3D(GridSensor):
         self.compute_lat_lon()
 
     def get_obs(self, obs_type="NormalDistance"):
-        particle_state = np.zeros(((self.m_LonAngle // self.m_CellArc) * 2,
-                                   (self.m_LatAngleNorth + self.m_LatAngleSouth) // self.m_CellArc, self.n_bodies),
-                                  dtype=DTYPE_NP)
+        particle_state = torch.zeros(((self.m_LonAngle // self.m_CellArc) * 2,
+                                   (self.m_LatAngleNorth + self.m_LatAngleSouth) // self.m_CellArc, self.n_bodies), dtype=torch.float32, device=self.device)
         # mesh_state = np.zeros(((self.m_LonAngle // self.m_CellArc) * 2,
         #                        (self.m_LatAngleNorth + self.m_LatAngleSouth) // self.m_CellArc,
         #                        self.n_statics + self.n_dynamics), dtype=DTYPE_NP)
@@ -275,5 +275,5 @@ class GridSensor3D(GridSensor):
             self.normal_distance_particle(particle_state)
         #     self.normal_distance_mesh(mesh_state)
         # state = np.concatenate((mesh_state, particle_state), axis=-1)
-        return np.flip(particle_state.transpose(1, 0, 2), 0)
+        return torch.flip(particle_state.permute(1, 0, 2), dims=[0])
 

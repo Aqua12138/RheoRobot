@@ -10,7 +10,7 @@ class FluidEnv(gym.Env):
     '''
     Base env class.
     '''    
-    def __init__(self, version, loss=True, loss_type='diff', seed=None, renderer_type='GGUI'):
+    def __init__(self, version, loss=True, loss_type='diff', seed=None, renderer_type='GGUI', stochastic_init=False):
         if seed is not None:
             self.seed(seed)
 
@@ -21,8 +21,8 @@ class FluidEnv(gym.Env):
         self.loss                  = loss
         self.loss_type             = loss_type
         self.action_range          = np.array([-1.0, 1.0])
-        self.renderer_type              = renderer_type
-
+        self.renderer_type         = renderer_type
+        self.stochastic_init       = stochastic_init
         # create a taichi env
         self.taichi_env = TaichiEnv()
         self.build_env()
@@ -161,3 +161,6 @@ class FluidEnv(gym.Env):
     @property
     def t(self):
         return self.taichi_env.t
+
+    def get_taichi_env(self):
+        self.taichi_env.reset_grad() # 1
