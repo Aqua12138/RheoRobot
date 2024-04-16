@@ -194,6 +194,11 @@ class GatheringSandEnv(FluidEnv):
         info = dict()
         return obs, torch.tensor(reward, dtype=torch.float32), torch.tensor(done, dtype=torch.bool), info
 
+    def step_grad(self, action):
+        action *= 0.35 * 2e-2
+        action.clip(self.action_range[0], max=self.action_range[1])
+        self.taichi_env.step_grad(action)
+
     def initialize_trajectory(self, s: int):
         self.taichi_env.reset_grad()
         self.taichi_env.reset_step(int(s))

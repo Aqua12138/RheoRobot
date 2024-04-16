@@ -11,7 +11,7 @@ from fluidlab.utils.misc import *
 
 
 # ti.init(arch=ti.gpu, device_memory_GB=10, packed=True)
-# ti.init(arch=ti.gpu, device_memory_GB=10, packed=True, debug=True)
+ti.init(arch=ti.cuda, device_memory_GB=10)
 
 @ti.data_oriented
 class TaichiEnv:
@@ -204,6 +204,10 @@ class TaichiEnv:
     def get_step_loss(self):
         assert self.loss is not None
         return self.loss.get_step_loss()
+
+    def get_step_reward(self):
+        assert self.reward is not None
+        return self.reward.get_step_reward()
 
     def get_final_loss(self):
         assert self.loss is not None

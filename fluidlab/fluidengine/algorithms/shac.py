@@ -117,7 +117,7 @@ class SHAC:
         # 额外的环境参数
         env_kwargs = {
             "seed": cfg["params"]["general"]["seed"],
-            "loss": True,
+            "loss": False,
             "loss_type": 'default',
             "renderer_type": cfg["params"]["general"]["renderer_type"],
             "episode_length": cfg["params"]["diff_env"].get("episode_length", 250),
@@ -372,6 +372,8 @@ class SHAC:
                         self.episode_discounted_loss[done_env_id] = 0.
                         self.episode_length[done_env_id] = 0
                         self.episode_gamma[done_env_id] = 1.
+        # backward
+        for i in range(cur_horizon - 1, policy.freeze_till - 1, -1):
 
 
         actor_loss /= self.steps_num * self.num_envs

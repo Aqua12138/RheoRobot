@@ -135,17 +135,15 @@ class GatheringEasyReward(Reward):
                 self.temporal_range[1] = min(self.max_loss_steps, self.temporal_range[1] + self.temporal_expand_speed)
                 print(f'temporal range expanded to {self.temporal_range}')
             
-    def get_step_loss(self):
-        cur_step_loss = self.step_loss[self.sim.cur_step_global-1]
-        reward = 0.01 * (150 - cur_step_loss)
-        loss = 0.01 * cur_step_loss
+    def get_step_reward(self):
+        cur_step_reward = self.rew[None]
+        reward =  cur_step_reward
 
-        loss_info = {}
-        loss_info['reward'] = reward
-        loss_info['loss'] = loss
-        return loss_info
+        reward_info = {}
+        reward_info['reward'] = reward
+        return reward_info
 
-    def get_final_loss(self):
+    def get_final_reward(self):
         self.compute_total_loss_kernel(self.temporal_range[0], self.temporal_range[1])
         self.expand_temporal_range()
         

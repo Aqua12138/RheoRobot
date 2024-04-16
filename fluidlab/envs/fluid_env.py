@@ -23,6 +23,7 @@ class FluidEnv(gym.Env):
         self.action_range          = np.array([-1.0, 1.0])
         self.renderer_type         = renderer_type
         self.stochastic_init       = stochastic_init
+        self.reward                = False
         # create a taichi env
         self.taichi_env = TaichiEnv()
         self.build_env()
@@ -136,8 +137,8 @@ class FluidEnv(gym.Env):
         return obs
 
     def _get_reward(self):
-        loss_info = self.taichi_env.get_step_loss()
-        return loss_info['loss']
+        loss_info = self.taichi_env.get_step_reward()
+        return loss_info['reward']
 
     def step(self, action):
         action = action.clip(self.action_range[0], self.action_range[1])

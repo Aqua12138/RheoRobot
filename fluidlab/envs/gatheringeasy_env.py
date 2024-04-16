@@ -11,7 +11,6 @@ from fluidlab.fluidengine.losses import *
 
 class GatheringEasyEnv(FluidEnv):
     def __init__(self, version, loss=True, loss_type='diff', seed=None,  renderer_type='GGUI'):
-
         if seed is not None:
             self.seed(seed)
 
@@ -23,12 +22,13 @@ class GatheringEasyEnv(FluidEnv):
         self.loss_type             = loss_type
         self.action_range          = np.array([-0.003, 0.003])
         self.renderer_type         = renderer_type
+        self.reward                = None
 
         # create a taichi env
         self.taichi_env = TaichiEnv(
             dim=3,
             particle_density=1e6,
-            max_substeps_local=50,
+            max_substeps_local=500,
             gravity=(0.0, -20.0, 0.0),
             horizon=self.horizon,
         )
