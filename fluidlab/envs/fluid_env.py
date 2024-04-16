@@ -42,6 +42,8 @@ class FluidEnv(gym.Env):
             self.setup_renderer()
         if self.loss:
             self.setup_loss()
+        if self.reward:
+            self.setup_reward()
             
         self.taichi_env.build()
         self._init_state = self.taichi_env.get_state()
@@ -83,6 +85,10 @@ class FluidEnv(gym.Env):
 
     def setup_loss(self):
         pass
+
+    def setup_reward(self):
+        pass
+
 
     def setup_sensors(self):
         pass
@@ -131,7 +137,7 @@ class FluidEnv(gym.Env):
 
     def _get_reward(self):
         loss_info = self.taichi_env.get_step_loss()
-        return loss_info['reward']
+        return loss_info['loss']
 
     def step(self, action):
         action = action.clip(self.action_range[0], self.action_range[1])

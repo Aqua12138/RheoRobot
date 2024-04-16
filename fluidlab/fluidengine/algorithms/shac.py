@@ -36,6 +36,8 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Type, U
 
 import gym
 VecEnvTensorObs = Union[torch.Tensor, Dict[str, torch.Tensor], Tuple[torch.Tensor, ...]]
+VecEnvStepReturn = Tuple[VecEnvTensorObs, torch.Tensor, torch.Tensor, List[Dict]]
+VecEnvIndices = Union[None, int, Iterable[int]]
 class CustomSubprocVecEnv(SubprocVecEnv):
     def __init__(self, env_fns):
         super().__init__(env_fns)
@@ -43,11 +45,42 @@ class CustomSubprocVecEnv(SubprocVecEnv):
     def initialize_trajectory(self) -> VecEnvTensorObs:
         obs = self.env_method("initialize_trajectory")
         return _flatten_tensor_obs(obs, self.observation_space)
+
+    # def update_next_value(self, next_values, s):
+    #     self.env_method("update_next_value", next_values, s)
+
+    def update_next_value(self, next_value, indices: VecEnvIndices = None, **method_kwargs):
+        """Call instance methods of vectorized environments."""
+        target_remotes = self._get_target_remotes(indices)
+        for id, remote in enumerate(target_remotes):
+            method_args = (next_value[id], )
+            remote.send(("env_method", ("update_next_value", method_args, method_kwargs)))
+        return [remote.recv() for remote in target_remotes]
+
+    def update_gamma(self, indices: VecEnvIndices = None, **method_kwargs):
+        """Call instance methods of vectorized environments."""
+        target_remotes = self._get_target_remotes(indices)
+        for remote in target_remotes:
+            remote.send(("env_method", ("update_gamma", (), method_kwargs)))
+        return [remote.recv() for remote in target_remotes]
+    def compute_actor_loss(self, indices: VecEnvIndices = None, **method_kwargs):
+        """Call instance methods of vectorized environments."""
+        target_remotes = self._get_target_remotes(indices)
+        for remote in target_remotes:
+            remote.send(("env_method", ("compute_actor_loss", (), method_kwargs)))
+        return [remote.recv() for remote in target_remotes]
+
     def reset(self) -> VecEnvTensorObs:
         for remote in self.remotes:
             remote.send(("reset", None))
         obs = [remote.recv() for remote in self.remotes]
         return _flatten_tensor_obs(obs, self.observation_space)
+
+    def step_wait(self) -> VecEnvStepReturn:
+        results = [remote.recv() for remote in self.remotes]
+        self.waiting = False
+        obs, rews, dones, infos = zip(*results)
+        return _flatten_tensor_obs(obs, self.observation_space), torch.stack(rews), torch.stack(dones), infos
 def _flatten_tensor_obs(obs: Union[List[VecEnvObs], Tuple[VecEnvObs]], space: gym.spaces.Space) -> VecEnvTensorObs:
     """
     Flatten observations, depending on the observation space.
@@ -83,7 +116,8 @@ class SHAC:
             "renderer_type": cfg["params"]["general"]["renderer_type"],
             "episode_length": cfg["params"]["diff_env"].get("episode_length", 250),
             "stochastic_init": cfg["params"]["diff_env"].get("stochastic_env", True),
-            "device" : cfg["params"]["general"]["device"]
+            "device" : cfg["params"]["general"]["device"],
+            "gamma" : cfg['params']['config'].get('gamma', 0.99)
         }
 
             # 如果有必要，您可以添加其他自定义方法
@@ -226,7 +260,6 @@ class SHAC:
         rew_acc = torch.zeros((self.steps_num + 1, self.num_envs), dtype = torch.float32, device = self.device)
         gamma = torch.ones(self.num_envs, dtype = torch.float32, device = self.device)
         next_values = torch.zeros((self.steps_num + 1, self.num_envs), dtype = torch.float32, device = self.device)
-        
         actor_loss = torch.tensor(0., dtype = torch.float32, device = self.device)
 
         with torch.no_grad():
@@ -239,6 +272,8 @@ class SHAC:
         # initialize trajectory to cut off gradients between episodes.
         # 初始化，包括grad 1
         obs= self.env.initialize_trajectory()
+        # 读取当前的episode
+        self.episode_length
         if self.obs_rms is not None:
             # update obs rms
             self.actor.update_normalization(obs["vector_obs"])
@@ -258,12 +293,15 @@ class SHAC:
             # scale the reward
             rew = rew * self.rew_scale
             
-            if self.obs_rms is not None:
-                # update obs rms
-                with torch.no_grad():
-                    self.obs_rms.update(obs)
-                # normalize the current obs
-                obs = obs_rms.normalize(obs)
+            # if self.obs_rms is not None:
+            #     # update obs rms
+            #     with torch.no_grad():
+            #         self.obs_rms.update(obs)
+            #     # normalize the current obs
+            #     obs = obs_rms.normalize(obs)
+            self.actor.update_normalization(obs['vector_obs'])
+            self.target_critic.update_normalization(obs['vector_obs'])
+            self.critic.update_normalization(obs['vector_obs'])
 
             if self.ret_rms is not None:
                 # update ret rms
@@ -277,7 +315,9 @@ class SHAC:
         
             done_env_ids = done.nonzero(as_tuple = False).squeeze(-1)
 
-            next_values[i + 1] = self.target_critic(obs).squeeze(-1)
+            next_values[i+1] = self.target_critic(obs)['extrinsic'].squeeze(-1) #梯度消失
+            clone_value = next_values[i+1].clone().detach()
+            self.env.update_next_value(clone_value) # update next value in taichi
 
             for id in done_env_ids:
                 if torch.isnan(extra_info['obs_before_reset'][id]).sum() > 0 \
@@ -288,35 +328,38 @@ class SHAC:
                     next_values[i + 1, id] = 0.
                 else: # otherwise, use terminal value critic to estimate the long-term performance
                     if self.obs_rms is not None:
-                        real_obs = obs_rms.normalize(extra_info['obs_before_reset'][id])
+                        real_obs = obs_rms.normalize(extra_info['obs_before_reset'][id]) # 待处理
                     else:
                         real_obs = extra_info['obs_before_reset'][id]
-                    next_values[i + 1, id] = self.target_critic(real_obs).squeeze(-1)
+                    next_values[i+1, id] = self.target_critic(real_obs).squeeze(-1)
+                    clone_value = next_values[i+1].clone().detach()
+                    self.env.update_next_value(clone_value)  # update next value in taichi
             
             if (next_values[i + 1] > 1e6).sum() > 0 or (next_values[i + 1] < -1e6).sum() > 0:
                 print('next value error')
                 raise ValueError
-            
+
+
             rew_acc[i + 1, :] = rew_acc[i, :] + gamma * rew
 
             if i < self.steps_num - 1:
                 actor_loss = actor_loss + (- rew_acc[i + 1, done_env_ids] - self.gamma * gamma[done_env_ids] * next_values[i + 1, done_env_ids]).sum()
             else:
+                # only
                 # terminate all envs at the end of optimization iteration
                 actor_loss = actor_loss + (- rew_acc[i + 1, :] - self.gamma * gamma * next_values[i + 1, :]).sum()
+                self.env.compute_actor_loss()
         
             # compute gamma for next step
             gamma = gamma * self.gamma
+            self.env.update_gamma()  # update next value in taichi
 
-            # clear up gamma and rew_acc for done envs
-            gamma[done_env_ids] = 1.
-            rew_acc[i + 1, done_env_ids] = 0.
 
             # collect data for critic training
             with torch.no_grad():
                 self.rew_buf[i] = rew.clone()
                 if i < self.steps_num - 1:
-                    self.done_mask[i] = done.clone().to(torch.float32)
+                    self.done_mask[i] = done.clone().to(torch.float32) # 不用考虑
                 else:
                     self.done_mask[i, :] = 1.
                 self.next_values[i] = next_values[i + 1].clone()

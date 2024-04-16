@@ -11,7 +11,7 @@ from fluidlab.optimizer.solver import solve_policy
 from fluidlab.optimizer.recorder import record_target, replay_policy, replay_target
 from fluidlab.utils.config import load_config
 import taichi as ti
-# ti.init(arch=ti.gpu, device_memory_GB=20, packed=True)
+# ti.init(arch=ti.gpu, device_memory_GB=8, packed=True, device_memory_fraction=0.9)
 ti.init(arch=ti.cpu, packed=True)
 import multiprocessing as mp
 

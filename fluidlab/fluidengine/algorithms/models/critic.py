@@ -55,10 +55,13 @@ class CriticStochasticPPO(nn.Module):
         self.linear_encoder = layers.LinearEncoder(input_size=256, num_layers=3, hidden_size=self.h_size, kernel_gain=(0.125 / self.h_size) ** 0.5)
         self.linear_encoder = layers.LinearEncoder(input_size=256 + obs_dim['vector_obs'][0], num_layers=3,
                                                    hidden_size=256).to(device)
-        self.value_head = decoders.ValueHeads(stream_names=["extrinsic"], input_size=257, output_size=1)
+        self.value_head = decoders.ValueHeads(stream_names=["extrinsic"], input_size=256, output_size=1)
 
     def forward(self, observations):
-        hide = torch.cat([self.simple_visual_encoder(observations["gridsensor3"]), self.normalizer(observations["vector_obs"])])
+        hide = torch.cat((self.simple_visual_encoder(observations["gridsensor3"]), self.normalizer(observations["vector_obs"])), dim=1)
         hide = self.linear_encoder(hide)
         value = self.value_head(hide)
         return value
+
+    def update_normalization(self, vector_obs):
+        self.normalizer.update(vector_obs)

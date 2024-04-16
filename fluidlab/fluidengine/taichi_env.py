@@ -104,6 +104,11 @@ class TaichiEnv:
             max_loss_steps=self.horizon,
             **kwargs
         )
+    def setup_reward(self, reward_cls, **kwargs):
+        self.reward = reward_cls(
+            max_loss_steps=self.horizon+1,
+            **kwargs
+        )
 
     def build(self):
         # particles
@@ -130,6 +135,9 @@ class TaichiEnv:
 
         if self.loss is not None:
             self.loss.build(self.simulator)
+
+        if self.reward is not None:
+            self.reward.build(self.simulator)
 
         self.t = 0
 
@@ -170,6 +178,8 @@ class TaichiEnv:
 
         if self.loss:
             self.loss.step()
+        if self.reward:
+            self.reward.step()
 
         self.t += 1
 
@@ -221,3 +231,12 @@ class TaichiEnv:
     def apply_agent_action_p_grad(self, action_p):
         assert self.agent is not None, 'Environment has no agent to execute action.'
         self.agent.apply_action_p_grad(action_p)
+
+    def update_next_value(self, next_value):
+        self.reward.step_next_values(next_value)
+
+    def update_gamma(self):
+        self.reward.update_gamma()
+
+    def compute_actor_loss(self):
+        self.reward.compute_actor_loss()

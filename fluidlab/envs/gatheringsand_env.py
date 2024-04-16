@@ -1,6 +1,8 @@
 import os
 import gym
 import numpy as np
+import torch
+
 from .fluid_env import FluidEnv
 from yacs.config import CfgNode
 from fluidlab.utils.misc import *
@@ -9,9 +11,10 @@ from fluidlab.optimizer.policies import *
 from fluidlab.fluidengine.taichi_env import TaichiEnv
 from fluidlab.fluidengine.losses import *
 from fluidlab.fluidengine.sensor import *
+from fluidlab.fluidengine.rewards import *
 from gym import spaces
 class GatheringSandEnv(FluidEnv):
-    def __init__(self, version, loss=True, loss_type='diff', seed=None,  renderer_type='GGUI', episode_length=1000, stochastic_init=False, device="cpu"):
+    def __init__(self, version, loss=True, loss_type='diff', seed=None,  renderer_type='GGUI', episode_length=1000, stochastic_init=False, device="cpu", gamma=0.99):
 
         if seed is not None:
             self.seed(seed)
@@ -27,6 +30,8 @@ class GatheringSandEnv(FluidEnv):
         self.renderer_type         = renderer_type
         self.stochastic_init       = stochastic_init
         self.device                = device
+        self.reward                = True
+        self.gamma                 = gamma
 
         # create a taichi env
         self.taichi_env = TaichiEnv(
@@ -114,6 +119,15 @@ class GatheringSandEnv(FluidEnv):
             weights={'dist': 0.1}
         )
 
+    def setup_reward(self):
+        self.taichi_env.setup_reward(
+            reward_cls=GatheringEasyReward,
+            type=self.loss_type,
+            matching_mat=WATER,
+            weights={'dist': 0.1},
+            gamma=self.gamma
+        )
+
     def setup_sensors(self):
         # setup sensor and build
         gridsensor2d_cfg = {"SensorName": "cup_gridsensor2d",
@@ -164,11 +178,12 @@ class GatheringSandEnv(FluidEnv):
         action *= 0.35 * 2e-2
         action.clip(self.action_range[0], max=self.action_range[1])
 
-
         self.taichi_env.step(action)
 
         obs = self.get_sensor_obs()
         reward = self._get_reward()
+        print(reward)
+
 
         assert self.t <= self.horizon
         if self.t == self.horizon:
@@ -181,7 +196,7 @@ class GatheringSandEnv(FluidEnv):
             done = True
 
         info = dict()
-        return obs, reward, done, info
+        return obs, torch.tensor(reward, dtype=torch.float32), torch.tensor(done, dtype=torch.bool), info
 
     def clear_grad(self):
         self.taichi_env.reset_grad()
@@ -189,4 +204,13 @@ class GatheringSandEnv(FluidEnv):
     def initialize_trajectory(self):
         self.taichi_env.reset_grad()
         return self.get_sensor_obs()
+
+    def update_next_value(self, next_values):
+        self.taichi_env.update_next_value(next_values)
+
+    def update_gamma(self):
+        self.taichi_env.update_gamma()
+
+    def compute_actor_loss(self):
+        self.taichi_env.compute_actor_loss()
 

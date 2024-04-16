@@ -136,7 +136,7 @@ class ActorStochasticPPO(nn.Module):
             return dist.sample()
 
     def forward_with_dist(self, obs, deterministic = False):
-        hide = torch.cat([self.simple_visual_encoder(obs[0]), self.normalizer(obs[1])])
+        hide = torch.cat((self.simple_visual_encoder(obs["gridsensor3"]), self.normalizer(obs["vector_obs"])), dim=1)
         hide = self.linear_encoder(hide)
         dist = self.gaussian_distribution(hide)
 
@@ -148,7 +148,7 @@ class ActorStochasticPPO(nn.Module):
             return dist.sample(), mu, std
 
     def evaluate_actions_log_probs(self, obs, actions):
-        hide = torch.cat([self.simple_visual_encoder(obs["gridsensor3"]), self.normalizer(obs["vector_obs"])])
+        hide = torch.cat((self.simple_visual_encoder(obs["gridsensor3"]), self.normalizer(obs["vector_obs"])), dim=1)
         hide = self.linear_encoder(hide)
         dist = self.gaussian_distribution(hide)
 
