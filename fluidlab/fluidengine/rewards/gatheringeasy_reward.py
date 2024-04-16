@@ -103,7 +103,7 @@ class GatheringEasyReward(Reward):
             self.total_loss[None] += self.step_loss[s]
     @ti.kernel
     def compute_actor_loss_kernel(self, s: ti.i32):
-        self.actor_loss[None] = self.actor_loss[None] + (-self.rew_acc[s+1] - self.gamma[None] * self._gamma * self.next_values[s+1])
+        self.actor_loss[None] = -self.rew_acc[s+1] - self.gamma[None] * self._gamma * self.next_values[s+1]
         print("actor_loss:", self.actor_loss[None], "rew_acc:", self.rew_acc[s+1], "gamma:", self.gamma[None], "next_value:", self.next_values[s+1])
 
     def get_final_loss_grad(self):

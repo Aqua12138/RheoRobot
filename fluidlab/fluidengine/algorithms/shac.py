@@ -42,9 +42,16 @@ class CustomSubprocVecEnv(SubprocVecEnv):
     def __init__(self, env_fns):
         super().__init__(env_fns)
 
-    def initialize_trajectory(self) -> VecEnvTensorObs:
-        obs = self.env_method("initialize_trajectory")
-        return _flatten_tensor_obs(obs, self.observation_space)
+    # def initialize_trajectory(self, s) -> VecEnvTensorObs:
+    #     obs = self.env_method("initialize_trajectory", )
+    #     return _flatten_tensor_obs(obs, self.observation_space)
+    def initialize_trajectory(self, s, indices: VecEnvIndices = None, **method_kwargs):
+        """Call instance methods of vectorized environments."""
+        target_remotes = self._get_target_remotes(indices)
+        for id, remote in enumerate(target_remotes):
+            method_args = (s[id],)
+            remote.send(("env_method", ("initialize_trajectory", method_args, method_kwargs)))
+        return _flatten_tensor_obs([remote.recv() for remote in target_remotes], self.observation_space)
 
     # def update_next_value(self, next_values, s):
     #     self.env_method("update_next_value", next_values, s)
@@ -243,7 +250,7 @@ class SHAC:
         self.episode_loss = torch.zeros(self.num_envs, dtype = torch.float32, device = self.device)
         self.episode_discounted_loss = torch.zeros(self.num_envs, dtype = torch.float32, device = self.device)
         self.episode_gamma = torch.ones(self.num_envs, dtype = torch.float32, device = self.device)
-        self.episode_length = torch.zeros(self.num_envs, dtype = int)
+        self.episode_length = 0
         self.best_policy_loss = np.inf
         self.actor_loss = np.inf
         self.value_loss = np.inf
@@ -257,6 +264,7 @@ class SHAC:
         self.time_report = TimeReport()
         
     def compute_actor_loss(self, deterministic = False):
+        # critic data
         rew_acc = torch.zeros((self.steps_num + 1, self.num_envs), dtype = torch.float32, device = self.device)
         gamma = torch.ones(self.num_envs, dtype = torch.float32, device = self.device)
         next_values = torch.zeros((self.steps_num + 1, self.num_envs), dtype = torch.float32, device = self.device)
@@ -270,46 +278,34 @@ class SHAC:
                 ret_var = self.ret_rms.var.clone()
 
         # initialize trajectory to cut off gradients between episodes.
-        # 初始化，包括grad 1
-        obs= self.env.initialize_trajectory()
-        # 读取当前的episode
-        self.episode_length
-        if self.obs_rms is not None:
-            # update obs rms
+        # init taichi
+        if self.episode_length >= self.max_episode_length:
+            # reset enviroment
+            self.episode_length=0
+            obs = self.env.reset()
             self.actor.update_normalization(obs["vector_obs"])
+        else:
+            obs= self.env.initialize_trajectory(self.episode_length)
+            self.actor.update_normalization(obs["vector_obs"])
+        # collect data for critic training
         for i in range(self.steps_num):
-            # collect data for critic training
             with torch.no_grad():
-                self.obs_buf_grid3D = obs['gridsensor3'].clone()
-                self.obs_buf_vector = obs['vector_obs'].clone()
+                self.obs_buf_grid3D[i] = obs['gridsensor3'].clone()
+                self.obs_buf_vector[i] = obs['vector_obs'].clone()
 
+            # Taichi forward step action
             actions = self.actor(obs, deterministic = deterministic)
             numpy_actions = actions.clone().detach().cpu().numpy()
             obs, rew, done, extra_info = self.env.step(numpy_actions)
-            
+
+            # collect data for critic training
             with torch.no_grad():
                 raw_rew = rew.clone()
-            
-            # scale the reward
-            rew = rew * self.rew_scale
-            
-            # if self.obs_rms is not None:
-            #     # update obs rms
-            #     with torch.no_grad():
-            #         self.obs_rms.update(obs)
-            #     # normalize the current obs
-            #     obs = obs_rms.normalize(obs)
+
+            # nomaliazation the observation
             self.actor.update_normalization(obs['vector_obs'])
             self.target_critic.update_normalization(obs['vector_obs'])
             self.critic.update_normalization(obs['vector_obs'])
-
-            if self.ret_rms is not None:
-                # update ret rms
-                with torch.no_grad():
-                    self.ret = self.ret * self.gamma + rew
-                    self.ret_rms.update(self.ret)
-                    
-                rew = rew / torch.sqrt(ret_var + 1e-6)
 
             self.episode_length += 1
         
@@ -320,40 +316,32 @@ class SHAC:
             self.env.update_next_value(clone_value) # update next value in taichi
 
             for id in done_env_ids:
-                if torch.isnan(extra_info['obs_before_reset'][id]).sum() > 0 \
-                    or torch.isinf(extra_info['obs_before_reset'][id]).sum() > 0 \
-                    or (torch.abs(extra_info['obs_before_reset'][id]) > 1e6).sum() > 0: # ugly fix for nan values
-                    next_values[i + 1, id] = 0.
-                elif self.episode_length[id] < self.max_episode_length: # early termination
-                    next_values[i + 1, id] = 0.
-                else: # otherwise, use terminal value critic to estimate the long-term performance
-                    if self.obs_rms is not None:
-                        real_obs = obs_rms.normalize(extra_info['obs_before_reset'][id]) # 待处理
-                    else:
-                        real_obs = extra_info['obs_before_reset'][id]
-                    next_values[i+1, id] = self.target_critic(real_obs).squeeze(-1)
-                    clone_value = next_values[i+1].clone().detach()
-                    self.env.update_next_value(clone_value)  # update next value in taichi
+                # otherwise, use terminal value critic to estimate the long-term performance
+                next_values[i+1, id] = self.target_critic(obs)['extrinsic'].squeeze(-1)
+                clone_value = next_values[i+1].clone().detach()
+                self.env.update_next_value(clone_value)  # update next value in taichi
             
             if (next_values[i + 1] > 1e6).sum() > 0 or (next_values[i + 1] < -1e6).sum() > 0:
                 print('next value error')
                 raise ValueError
 
-
             rew_acc[i + 1, :] = rew_acc[i, :] + gamma * rew
 
-            if i < self.steps_num - 1:
-                actor_loss = actor_loss + (- rew_acc[i + 1, done_env_ids] - self.gamma * gamma[done_env_ids] * next_values[i + 1, done_env_ids]).sum()
-            else:
-                # only
-                # terminate all envs at the end of optimization iteration
-                actor_loss = actor_loss + (- rew_acc[i + 1, :] - self.gamma * gamma * next_values[i + 1, :]).sum()
-                self.env.compute_actor_loss()
-        
-            # compute gamma for next step
-            gamma = gamma * self.gamma
-            self.env.update_gamma()  # update next value in taichi
+            # debug
+            # if i < self.steps_num - 1:
+            #     actor_loss = actor_loss + (
+            #                 - rew_acc[i + 1, done_env_ids] - self.gamma * gamma[done_env_ids] * next_values[
+            #             i + 1, done_env_ids]).sum()
+            # else:
+            #     # terminate all envs at the end of optimization iteration
+            #     actor_loss = actor_loss + (- rew_acc[i + 1, :] - self.gamma * gamma * next_values[i + 1, :]).sum()
+            # # compute gamma for next step
+            # gamma = gamma * self.gamma
 
+            if i == self.steps_num - 1:
+                self.env.compute_actor_loss()
+
+            self.env.update_gamma()  # update next value in taichi
 
             # collect data for critic training
             with torch.no_grad():
@@ -386,10 +374,8 @@ class SHAC:
                         self.episode_length[done_env_id] = 0
                         self.episode_gamma[done_env_id] = 1.
 
-        actor_loss /= self.steps_num * self.num_envs
 
-        if self.ret_rms is not None:
-            actor_loss = actor_loss * torch.sqrt(ret_var + 1e-6)
+        actor_loss /= self.steps_num * self.num_envs
             
         self.actor_loss = actor_loss.detach().cpu().item()
             
@@ -460,7 +446,7 @@ class SHAC:
             raise NotImplementedError
             
     def compute_critic_loss(self, batch_sample):
-        predicted_values = self.critic(batch_sample['obs']).squeeze(-1)
+        predicted_values = self.critic(batch_sample['obs'])['extrinsic'].squeeze(-1)
         target_values = batch_sample['target_values']
         critic_loss = ((predicted_values - target_values) ** 2).mean()
 
@@ -509,16 +495,16 @@ class SHAC:
             actor_loss.backward()
             self.time_report.end_timer("backward simulation")
 
-            with torch.no_grad():
-                self.grad_norm_before_clip = tu.grad_norm(self.actor.parameters())
-                if self.truncate_grad:
-                    clip_grad_norm_(self.actor.parameters(), self.grad_norm)
-                self.grad_norm_after_clip = tu.grad_norm(self.actor.parameters()) 
-                
-                # sanity check
-                if torch.isnan(self.grad_norm_before_clip) or self.grad_norm_before_clip > 1000000.:
-                    print('NaN gradient')
-                    raise ValueError
+            # with torch.no_grad():
+            #     self.grad_norm_before_clip = tu.grad_norm(self.actor.parameters())
+            #     if self.truncate_grad:
+            #         clip_grad_norm_(self.actor.parameters(), self.grad_norm)
+            #     self.grad_norm_after_clip = tu.grad_norm(self.actor.parameters())
+            #
+            #     # sanity check
+            #     if torch.isnan(self.grad_norm_before_clip) or self.grad_norm_before_clip > 1000000.:
+            #         print('NaN gradient')
+            #         raise ValueError
 
             self.time_report.end_timer("compute actor loss")
 
@@ -550,7 +536,7 @@ class SHAC:
             self.time_report.start_timer("prepare critic dataset")
             with torch.no_grad():
                 self.compute_target_values()
-                dataset = CriticDataset(self.batch_size, self.obs_buf, self.target_values, drop_last = False)
+                dataset = CriticDataset(self.batch_size, {"gridsensor3": self.obs_buf_grid3D, "vector_obs": self.obs_buf_vector}, self.target_values, drop_last=False)
             self.time_report.end_timer("prepare critic dataset")
 
             self.time_report.start_timer("critic training")
@@ -620,8 +606,8 @@ class SHAC:
                 mean_policy_discounted_loss = np.inf
                 mean_episode_length = 0
             
-            print('iter {}: ep loss {:.2f}, ep discounted loss {:.2f}, ep len {:.1f}, fps total {:.2f}, value loss {:.2f}, grad norm before clip {:.2f}, grad norm after clip {:.2f}'.format(\
-                    self.iter_count, mean_policy_loss, mean_policy_discounted_loss, mean_episode_length, self.steps_num * self.num_envs / (time_end_epoch - time_start_epoch), self.value_loss, self.grad_norm_before_clip, self.grad_norm_after_clip))
+            # print('iter {}: ep loss {:.2f}, ep discounted loss {:.2f}, ep len {:.1f}, fps total {:.2f}, value loss {:.2f}, grad norm before clip {:.2f}, grad norm after clip {:.2f}'.format(\
+            #         self.iter_count, mean_policy_loss, mean_policy_discounted_loss, mean_episode_length, self.steps_num * self.num_envs / (time_end_epoch - time_start_epoch), self.value_loss, self.grad_norm_before_clip, self.grad_norm_after_clip))
 
             self.writer.flush()
         
