@@ -49,8 +49,7 @@ class CustomSubprocVecEnv(SubprocVecEnv):
         """Call instance methods of vectorized environments."""
         target_remotes = self._get_target_remotes(indices)
         for id, remote in enumerate(target_remotes):
-            method_args = (s[id],)
-            remote.send(("env_method", ("initialize_trajectory", method_args, method_kwargs)))
+            remote.send(("env_method", ("initialize_trajectory", (s,), method_kwargs)))
         return _flatten_tensor_obs([remote.recv() for remote in target_remotes], self.observation_space)
 
     # def update_next_value(self, next_values, s):
@@ -265,10 +264,10 @@ class SHAC:
         
     def compute_actor_loss(self, deterministic = False):
         # critic data
-        rew_acc = torch.zeros((self.steps_num + 1, self.num_envs), dtype = torch.float32, device = self.device)
-        gamma = torch.ones(self.num_envs, dtype = torch.float32, device = self.device)
-        next_values = torch.zeros((self.steps_num + 1, self.num_envs), dtype = torch.float32, device = self.device)
-        actor_loss = torch.tensor(0., dtype = torch.float32, device = self.device)
+        rew_acc = torch.zeros((self.steps_num + 1, self.num_envs), dtype = torch.float32, device = self.device) # critic train
+        gamma = torch.ones(self.num_envs, dtype = torch.float32, device = self.device) # debug & critic train
+        next_values = torch.zeros((self.steps_num + 1, self.num_envs), dtype = torch.float32, device = self.device) # critic train
+        actor_loss = torch.tensor(0., dtype = torch.float32, device = self.device) # debug
 
         with torch.no_grad():
             if self.obs_rms is not None:
@@ -279,7 +278,7 @@ class SHAC:
 
         # initialize trajectory to cut off gradients between episodes.
         # init taichi
-        if self.episode_length >= self.max_episode_length:
+        if self.episode_length >= self.max_episode_length[0]:
             # reset enviroment
             self.episode_length=0
             obs = self.env.reset()
@@ -328,15 +327,15 @@ class SHAC:
             rew_acc[i + 1, :] = rew_acc[i, :] + gamma * rew
 
             # debug
-            # if i < self.steps_num - 1:
-            #     actor_loss = actor_loss + (
-            #                 - rew_acc[i + 1, done_env_ids] - self.gamma * gamma[done_env_ids] * next_values[
-            #             i + 1, done_env_ids]).sum()
-            # else:
-            #     # terminate all envs at the end of optimization iteration
-            #     actor_loss = actor_loss + (- rew_acc[i + 1, :] - self.gamma * gamma * next_values[i + 1, :]).sum()
-            # # compute gamma for next step
-            # gamma = gamma * self.gamma
+            if i < self.steps_num - 1:
+                actor_loss = actor_loss + (
+                            - rew_acc[i + 1, done_env_ids] - self.gamma * gamma[done_env_ids] * next_values[
+                        i + 1, done_env_ids]).sum()
+            else:
+                # terminate all envs at the end of optimization iteration
+                actor_loss = actor_loss + (- rew_acc[i + 1, :] - self.gamma * gamma * next_values[i + 1, :]).sum()
+            # compute gamma for next step
+            gamma = gamma * self.gamma
 
             if i == self.steps_num - 1:
                 self.env.compute_actor_loss()
@@ -452,10 +451,6 @@ class SHAC:
 
         return critic_loss
 
-    def initialize_env(self):
-        self.env.env_method("clear_grad")
-        self.env.reset()
-
     @torch.no_grad()
     def run(self, num_games):
         mean_policy_loss, mean_policy_discounted_loss, mean_episode_length = self.evaluate_policy(num_games = num_games, deterministic = not self.stochastic_evaluation)
@@ -476,10 +471,10 @@ class SHAC:
         self.time_report.start_timer("algorithm")
 
         # initializations
-        self.initialize_env()
+        self.env.reset()
         self.episode_loss = torch.zeros(self.num_envs, dtype = torch.float32, device = self.device)
         self.episode_discounted_loss = torch.zeros(self.num_envs, dtype = torch.float32, device = self.device)
-        self.episode_length = torch.zeros(self.num_envs, dtype = int)
+        self.episode_length = 0
         self.episode_gamma = torch.ones(self.num_envs, dtype = torch.float32, device = self.device)
         
         def actor_closure():

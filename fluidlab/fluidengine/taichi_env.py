@@ -160,9 +160,6 @@ class TaichiEnv:
         if self.reward is not None:
             self.reward.reset_step(s)
 
-    def reset_gamma(self):
-        self.reward.reset_gamma()
-
     def enable_grad(self):
         self.simulator.enable_grad()
 

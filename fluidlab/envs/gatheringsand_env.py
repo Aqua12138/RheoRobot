@@ -194,13 +194,9 @@ class GatheringSandEnv(FluidEnv):
         info = dict()
         return obs, torch.tensor(reward, dtype=torch.float32), torch.tensor(done, dtype=torch.bool), info
 
-    def clear_grad(self):
-        self.taichi_env.reset_grad()
-
     def initialize_trajectory(self, s: int):
         self.taichi_env.reset_grad()
         self.taichi_env.reset_step(int(s))
-        self.taichi_env.reset_gamma()
         return self.get_sensor_obs()
 
     def update_next_value(self, next_values):

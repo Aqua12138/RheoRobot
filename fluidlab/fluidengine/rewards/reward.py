@@ -21,9 +21,10 @@ class Reward:
 
         self.rew = ti.field(dtype=DTYPE_TI, shape=(), needs_grad=True)
         self.rew_acc = ti.field(dtype=DTYPE_TI, shape=(self.max_loss_steps+1,), needs_grad=True)
+        self.actor_loss = ti.field(dtype=DTYPE_TI, shape=(), needs_grad=True)
         self.next_values = ti.field(dtype=DTYPE_TI, shape=(self.max_loss_steps+1,), needs_grad=False)
         self.gamma = ti.field(dtype=DTYPE_TI, shape=(), needs_grad=False)
-        self.actor_loss = ti.field(dtype=DTYPE_TI, shape=(), needs_grad=True)
+
 
     def build(self, sim):
         self.sim    = sim
@@ -52,7 +53,8 @@ class Reward:
 
     def reset_grad(self):
         self.rew_acc.grad.fill(0)
-        self.total_loss.grad.fill(1)
+        self.actor_loss.grad.fill(1)
+        self.rew.grad.fill(0)
         
     def load_target(self, path):
         pass
@@ -61,6 +63,12 @@ class Reward:
     def clear_loss(self):
         self.rew_acc.fill(0)
         self.rew_acc.grad.fill(0)
+
+        self.actor_loss.fill(0)
+        self.actor_loss.grad.fill(1)
+
+        self.rew.fill(0)
+        self.rew.grad.fill(0)
 
         self.gamma.fill(1)
 
@@ -71,13 +79,10 @@ class Reward:
         pass
     @ti.kernel
     def reset_step(self, s: ti.i32):
-        self.rew_acc[s] = 0
-        self.rew_acc.grad[s] = 0
-
-        # self.next_values[s] = 0
-        self.gamma.fill(1)
+        self.rew_acc[s] = 0.0
+        self.gamma.fill(1.0)
         self.actor_loss.fill(0.0)
-        self.actor_loss.grad.fill(1.0)
+
     def reset(self):
         self.clear_loss()
         self.clear_losses()
@@ -96,8 +101,6 @@ class Reward:
     def update_gamma(self):
         self.gamma[None] = self.gamma[None] * self._gamma
 
-    def reset_gamma(self):
-        self.gamma[None] = 1.0
 
 
 
