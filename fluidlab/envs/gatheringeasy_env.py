@@ -28,7 +28,7 @@ class GatheringEasyEnv(FluidEnv):
         self.taichi_env = TaichiEnv(
             dim=3,
             particle_density=1e6,
-            max_substeps_local=500,
+            max_substeps_local=50,
             gravity=(0.0, -20.0, 0.0),
             horizon=self.horizon,
         )

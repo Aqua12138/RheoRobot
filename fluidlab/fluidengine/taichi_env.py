@@ -53,6 +53,7 @@ class TaichiEnv:
         self.renderer        = None
         self.loss            = None
         self.smoke_field     = None
+        self.reward          = None
 
         print('===>  TaichiEnv created.')
 
