@@ -74,7 +74,12 @@ class CustomSubprocVecEnv(SubprocVecEnv):
         target_remotes = self._get_target_remotes(indices)
         for remote in target_remotes:
             remote.send(("env_method", ("compute_actor_loss", (), method_kwargs)))
-        return [remote.recv() for remote in target_remotes]
+
+    def compute_actor_loss_grad(self, indices: VecEnvIndices = None, **method_kwargs):
+        """Call instance methods of vectorized environments."""
+        target_remotes = self._get_target_remotes(indices)
+        for remote in target_remotes:
+            remote.send(("env_method", ("compute_actor_loss_grad", (), method_kwargs)))
 
     def reset(self) -> VecEnvTensorObs:
         for remote in self.remotes:
@@ -87,6 +92,15 @@ class CustomSubprocVecEnv(SubprocVecEnv):
         self.waiting = False
         obs, rews, dones, infos = zip(*results)
         return _flatten_tensor_obs(obs, self.observation_space), torch.stack(rews), torch.stack(dones), infos
+
+    def step_grad(self, actions, indices: VecEnvIndices = None, **method_kwargs):
+        """Call instance methods of vectorized environments."""
+        target_remotes = self._get_target_remotes(indices)
+        for id, remote in enumerate(target_remotes):
+            method_args = (actions[id], )
+            remote.send(("env_method", ("step_grad", method_args, method_kwargs)))
+        return [remote.recv() for remote in target_remotes]
+
 def _flatten_tensor_obs(obs: Union[List[VecEnvObs], Tuple[VecEnvObs]], space: gym.spaces.Space) -> VecEnvTensorObs:
     """
     Flatten observations, depending on the observation space.
@@ -268,6 +282,7 @@ class SHAC:
         gamma = torch.ones(self.num_envs, dtype = torch.float32, device = self.device) # debug & critic train
         next_values = torch.zeros((self.steps_num + 1, self.num_envs), dtype = torch.float32, device = self.device) # critic train
         actor_loss = torch.tensor(0., dtype = torch.float32, device = self.device) # debug
+        actions = torch.zeros((self.steps_num, self.num_envs, 6), dtype = torch.float32, device = self.device)
 
         with torch.no_grad():
             if self.obs_rms is not None:
@@ -293,9 +308,9 @@ class SHAC:
                 self.obs_buf_vector[i] = obs['vector_obs'].clone()
 
             # Taichi forward step action
-            actions = self.actor(obs, deterministic = deterministic)
-            numpy_actions = actions.clone().detach().cpu().numpy()
-            obs, rew, done, extra_info = self.env.step(numpy_actions)
+            actions[i] = self.actor(obs, deterministic = deterministic)
+            action = actions[i].clone().detach().cpu().numpy()
+            obs, rew, done, extra_info = self.env.step(action)
 
             # collect data for critic training
             with torch.no_grad():
@@ -328,9 +343,7 @@ class SHAC:
 
             # debug
             if i < self.steps_num - 1:
-                actor_loss = actor_loss + (
-                            - rew_acc[i + 1, done_env_ids] - self.gamma * gamma[done_env_ids] * next_values[
-                        i + 1, done_env_ids]).sum()
+                actor_loss = actor_loss + (- rew_acc[i + 1, done_env_ids] - self.gamma * gamma[done_env_ids] * next_values[i + 1, done_env_ids]).sum()
             else:
                 # terminate all envs at the end of optimization iteration
                 actor_loss = actor_loss + (- rew_acc[i + 1, :] - self.gamma * gamma * next_values[i + 1, :]).sum()
@@ -373,7 +386,17 @@ class SHAC:
                         self.episode_length[done_env_id] = 0
                         self.episode_gamma[done_env_id] = 1.
         # backward
-        for i in range(cur_horizon - 1, policy.freeze_till - 1, -1):
+
+        for i in range(self.steps_num-1, 0, -1):
+            if i == self.steps_num - 1:
+                self.env.compute_actor_loss_grad()
+            if i < self.max_episode_length[0]:
+                action = actions[i].clone().detach().cpu().numpy()
+            else:
+                action = None
+            self.env.step_grad(action)
+
+        # taichi_env.agent.get_grad(horizon_action)
 
 
         actor_loss /= self.steps_num * self.num_envs

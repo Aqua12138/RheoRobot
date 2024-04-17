@@ -90,10 +90,12 @@ class Reward:
     def step(self):
         # compute loss for step self.sim.cur_step_global-1
         self.compute_step_reward(self.sim.cur_step_global-1, self.sim.cur_substep_local)
+        print("step:", self.sim.cur_step_global-1)
 
     def step_grad(self):
         # compute loss for step self.sim.cur_step_global-1
-        self.compute_step_loss_grad(self.sim.cur_step_global-1, self.sim.cur_substep_local)
+        self.compute_step_reward_grad(self.sim.cur_step_global-1, self.sim.cur_substep_local)
+        print("step_grad:", self.sim.cur_step_global - 1)
 
     def step_next_values(self, next_value):
         self.next_values[self.sim.cur_step_global] = next_value

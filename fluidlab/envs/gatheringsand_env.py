@@ -182,7 +182,7 @@ class GatheringSandEnv(FluidEnv):
 
         obs = self.get_sensor_obs()
         reward = self._get_reward()
-        print(reward)
+        # print(reward)
 
 
         assert self.t <= self.horizon
@@ -212,4 +212,7 @@ class GatheringSandEnv(FluidEnv):
 
     def compute_actor_loss(self):
         self.taichi_env.compute_actor_loss()
+
+    def compute_actor_loss_grad(self):
+        self.taichi_env.compute_actor_loss_grad()
 

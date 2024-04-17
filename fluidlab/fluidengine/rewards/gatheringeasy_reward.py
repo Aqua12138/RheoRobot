@@ -91,7 +91,7 @@ class GatheringEasyReward(Reward):
     @ti.kernel
     def sum_up_reward_kernel(self, s: ti.i32):
         self.rew[None] = self.dist_reward[s] * self.dist_weight * 0.01
-        print("taichi:", self.rew[None])
+        # print("taichi:", self.rew[None])
 
     @ti.kernel
     def compute_reward_kernel(self, s: ti.i32):
@@ -104,7 +104,7 @@ class GatheringEasyReward(Reward):
     @ti.kernel
     def compute_actor_loss_kernel(self, s: ti.i32):
         self.actor_loss[None] = -self.rew_acc[s+1] - self.gamma[None] * self._gamma * self.next_values[s+1]
-        print("actor_loss:", self.actor_loss[None], "rew_acc:", self.rew_acc[s+1], "gamma:", self.gamma[None], "next_value:", self.next_values[s+1])
+        # print("actor_loss:", self.actor_loss[None], "rew_acc:", self.rew_acc[s+1], "gamma:", self.gamma[None], "next_value:", self.next_values[s+1])
 
     def get_final_loss_grad(self):
         self.compute_total_loss_kernel.grad(self.temporal_range[0], self.temporal_range[1])

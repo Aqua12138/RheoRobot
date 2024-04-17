@@ -193,7 +193,7 @@ class TaichiEnv:
 
     def step_grad(self, action=None):
         if self.reward:
-            self.reward.step()
+            self.reward.step_grad()
         if self.loss:
             self.loss.step_grad()
 
@@ -257,3 +257,6 @@ class TaichiEnv:
 
     def compute_actor_loss(self):
         self.reward.compute_actor_loss()
+
+    def compute_actor_loss_grad(self):
+        self.reward.compute_actor_loss_grad()
