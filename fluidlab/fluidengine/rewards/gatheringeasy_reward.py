@@ -67,6 +67,7 @@ class GatheringEasyReward(Reward):
         self.compute_reward_kernel.grad(s)
         self.sum_up_reward_kernel.grad(s)
         self.compute_dist_reward_grad(s, f)
+        # self.debug_grad(f)
 
     def compute_dist_reward(self, s, f):
         self.compute_dist_reward_kernel(s, f)
@@ -111,10 +112,9 @@ class GatheringEasyReward(Reward):
         # self.debug_grad(self.temporal_range[0], self.temporal_range[1])
 
     @ti.kernel
-    def debug_grad(self, s_start: ti.i32, s_end: ti.i32):
-        for s in range(s_start, s_end):
-            print("step loss grad:", self.step_loss.grad[s])
-    #
+    def debug_grad(self, f: ti.i32):
+        print("particle_x_grad", self.particle_x.grad[f, 0][0])
+
     def expand_temporal_range(self):
         if self.temporal_range_type == 'expand':
             loss_improved = (self.best_loss - self.total_loss[None])

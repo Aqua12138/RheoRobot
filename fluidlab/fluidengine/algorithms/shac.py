@@ -396,8 +396,7 @@ class SHAC:
                 action = None
             self.env.step_grad(action)
 
-
-        # taichi_env.agent.get_grad(horizon_action)
+        action_grad = self.env.env_method("get_grad")
 
 
         actor_loss /= self.steps_num * self.num_envs

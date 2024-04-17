@@ -216,3 +216,6 @@ class GatheringSandEnv(FluidEnv):
     def compute_actor_loss_grad(self):
         self.taichi_env.compute_actor_loss_grad()
 
+    def get_grad(self):
+        return self.agent.get_grad(5)
+
