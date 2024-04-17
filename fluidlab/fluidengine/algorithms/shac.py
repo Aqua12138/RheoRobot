@@ -387,7 +387,7 @@ class SHAC:
                         self.episode_gamma[done_env_id] = 1.
         # backward
 
-        for i in range(self.steps_num-1, 0, -1):
+        for i in range(self.steps_num-1, 0-1, -1):
             if i == self.steps_num - 1:
                 self.env.compute_actor_loss_grad()
             if i < self.max_episode_length[0]:
@@ -395,6 +395,7 @@ class SHAC:
             else:
                 action = None
             self.env.step_grad(action)
+
 
         # taichi_env.agent.get_grad(horizon_action)
 
