@@ -272,17 +272,15 @@ class Effector:
         assert s * n_substeps <= self.max_substeps_local
         if self.action_dim > 0:
             self.set_velocity.grad(s, s_global, n_substeps)
-            self.debug_grad(s)
+            # self.debug_grad(s)
 
     def get_action_grad(self, s, n):
         if self.action_dim > 0:
             grad = np.zeros((n+1, self.action_dim), dtype=DTYPE_NP)
             self.get_action_v_grad_kernel(s, n, grad)
             self.get_action_p_grad_kernel(n, grad)
-            print(grad)
             return grad
         else:
-            print(111)
             return None
 
     @ti.kernel

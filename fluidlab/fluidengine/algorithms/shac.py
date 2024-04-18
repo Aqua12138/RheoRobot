@@ -87,6 +87,13 @@ class CustomSubprocVecEnv(SubprocVecEnv):
         self.waiting = False
         obs, rews, dones, infos = zip(*results)
         return _flatten_tensor_obs(obs, self.observation_space), torch.stack(rews), torch.stack(dones), infos
+
+    def step_grad(self, actions, indices: VecEnvIndices = None, **method_kwargs) -> List[Any]:
+        """Call instance methods of vectorized environments."""
+        target_remotes = self._get_target_remotes(indices)
+        for remote, action in zip(target_remotes, actions):
+            remote.send(("env_method", ("step_grad", (action, ), method_kwargs)))
+        return [remote.recv() for remote in target_remotes]
 def _flatten_tensor_obs(obs: Union[List[VecEnvObs], Tuple[VecEnvObs]], space: gym.spaces.Space) -> VecEnvTensorObs:
     """
     Flatten observations, depending on the observation space.
@@ -268,7 +275,7 @@ class SHAC:
         gamma = torch.ones(self.num_envs, dtype = torch.float32, device = self.device) # debug & critic train
         next_values = torch.zeros((self.steps_num + 1, self.num_envs), dtype = torch.float32, device = self.device) # critic train
         actor_loss = torch.tensor(0., dtype = torch.float32, device = self.device) # debug
-        actions = torch.zeros((self.steps_num, self.num_envs, 6), dtype = torch.float32, device = self.device)
+        actions = torch.zeros((self.max_episode_length[0], self.num_envs, 6), dtype = torch.float32, device = self.device)
 
         with torch.no_grad():
             if self.obs_rms is not None:
@@ -288,10 +295,11 @@ class SHAC:
             obs= self.env.initialize_trajectory(self.episode_length)
             self.actor.update_normalization(obs["vector_obs"])
         # collect data for critic training
-        for i in range(self.steps_num):
+        episode_length=self.episode_length
+        for i in range(episode_length, episode_length+self.steps_num):
             with torch.no_grad():
-                self.obs_buf_grid3D[i] = obs['gridsensor3'].clone()
-                self.obs_buf_vector[i] = obs['vector_obs'].clone()
+                self.obs_buf_grid3D[i%self.steps_num] = obs['gridsensor3'].clone()
+                self.obs_buf_vector[i%self.steps_num] = obs['vector_obs'].clone()
 
             # Taichi forward step action
             actions[i] = self.actor(obs, deterministic = deterministic)
@@ -373,26 +381,27 @@ class SHAC:
                         self.episode_gamma[done_env_id] = 1.
         # backward
 
-        # for i in range(self.steps_num-1, 0-1, -1):
-        #     if i == self.steps_num - 1:
-        #         self.env.compute_actor_loss_grad()
-        #     if i < self.max_episode_length[0]:
-        #         action = actions[i].clone().detach().cpu().numpy()
-        #     else:
-        #         action = None
-        #     self.env.step_grad(action)
+        for i in range(episode_length + self.steps_num-1, episode_length-1, -1):
+            if i == self.steps_num - 1:
+                self.env.env_method("compute_actor_loss_grad")
+            if i < self.max_episode_length[0]:
+                action = actions[i].clone().detach().cpu().numpy()
+            else:
+                action = None
+            self.env.step_grad(action)
+
 
         # action_grad = self.env.get_grad(self.episode_length)
-        a = self.env.reset()
+        action_grad = np.array(self.env.env_method("get_grad", self.episode_length-1))
 
 
-        actor_loss /= self.steps_num * self.num_envs
+        # actor_loss /= self.steps_num * self.num_envs
             
-        self.actor_loss = actor_loss.detach().cpu().item()
+        # self.actor_loss = actor_loss.detach().cpu().item()
             
         self.step_count += self.steps_num * self.num_envs
 
-        return actor_loss
+        return action_grad
     
     @torch.no_grad()
     def evaluate_policy(self, num_games, deterministic = False):
@@ -499,7 +508,7 @@ class SHAC:
             self.time_report.end_timer("forward simulation")
 
             self.time_report.start_timer("backward simulation")
-            actor_loss.backward()
+            # actor_loss.backward()
             self.time_report.end_timer("backward simulation")
 
             # with torch.no_grad():
@@ -535,7 +544,8 @@ class SHAC:
 
             # train actor
             self.time_report.start_timer("actor training")
-            self.actor_optimizer.step(actor_closure).detach().item()
+            # self.actor_optimizer.step(actor_closure).detach().item()
+            actor_closure()
             self.time_report.end_timer("actor training")
 
             # train critic
@@ -555,16 +565,16 @@ class SHAC:
                     batch_sample = dataset[i]
                     self.critic_optimizer.zero_grad()
                     training_critic_loss = self.compute_critic_loss(batch_sample)
-                    training_critic_loss.backward()
+                    # training_critic_loss.backward()
                     
                     # ugly fix for simulation nan problem
-                    for params in self.critic.parameters():
-                        params.grad.nan_to_num_(0.0, 0.0, 0.0)
+                    # for params in self.critic.parameters():
+                    #     params.grad.nan_to_num_(0.0, 0.0, 0.0)
 
-                    if self.truncate_grad:
-                        clip_grad_norm_(self.critic.parameters(), self.grad_norm)
-
-                    self.critic_optimizer.step()
+                    # if self.truncate_grad:
+                    #     clip_grad_norm_(self.critic.parameters(), self.grad_norm)
+                    #
+                    # self.critic_optimizer.step()
 
                     total_critic_loss += training_critic_loss
                     batch_cnt += 1
