@@ -52,8 +52,19 @@ class CustomSubprocVecEnv(SubprocVecEnv):
             remote.send(("env_method", ("initialize_trajectory", (s,), method_kwargs)))
         return _flatten_tensor_obs([remote.recv() for remote in target_remotes], self.observation_space)
 
-    # def update_next_value(self, next_values, s):
-    #     self.env_method("update_next_value", next_values, s)
+    def get_grad(self, n, indices: VecEnvIndices = None, **method_kwargs):
+        """Call instance methods of vectorized environments."""
+        target_remotes = self._get_target_remotes(indices)
+        for id, remote in enumerate(target_remotes):
+            remote.send(("env_method", ("get_grad", (n,), method_kwargs)))
+        return [remote.recv() for remote in target_remotes]
+
+    def seed(self, seed: Optional[int] = None) -> List[Union[None, int]]:
+        if seed is None:
+            seed = np.random.randint(0, 2**32 - 1)
+        for idx, remote in enumerate(self.remotes):
+            remote.send(("seed", seed + idx))
+        return [remote.recv() for remote in self.remotes]
 
     def update_next_value(self, next_value, indices: VecEnvIndices = None, **method_kwargs):
         """Call instance methods of vectorized environments."""
@@ -93,13 +104,25 @@ class CustomSubprocVecEnv(SubprocVecEnv):
         obs, rews, dones, infos = zip(*results)
         return _flatten_tensor_obs(obs, self.observation_space), torch.stack(rews), torch.stack(dones), infos
 
-    def step_grad(self, actions, indices: VecEnvIndices = None, **method_kwargs):
-        """Call instance methods of vectorized environments."""
-        target_remotes = self._get_target_remotes(indices)
-        for id, remote in enumerate(target_remotes):
-            method_args = (actions[id], )
+    def step_grad(self, actions: np.ndarray) -> None:
+        """
+        Step the environments with the given action
+
+        :param actions: the action
+        :return: observation, reward, done, information
+        """
+        self.step_grad_async(actions)
+        return self.step_grad_wait()
+
+    def step_grad_async(self, actions: np.ndarray, **method_kwargs) -> None:
+        for remote, action in zip(self.remotes, actions):
+            method_args = (action, )
             remote.send(("env_method", ("step_grad", method_args, method_kwargs)))
-        return [remote.recv() for remote in target_remotes]
+        self.waiting = True
+
+    def step_grad_wait(self) -> None:
+        results = [remote.recv() for remote in self.remotes]
+        self.waiting = False
 
 def _flatten_tensor_obs(obs: Union[List[VecEnvObs], Tuple[VecEnvObs]], space: gym.spaces.Space) -> VecEnvTensorObs:
     """
@@ -301,6 +324,7 @@ class SHAC:
         else:
             obs= self.env.initialize_trajectory(self.episode_length)
             self.actor.update_normalization(obs["vector_obs"])
+        action_grad = self.env.get_grad(self.episode_length)
         # collect data for critic training
         for i in range(self.steps_num):
             with torch.no_grad():
@@ -387,16 +411,16 @@ class SHAC:
                         self.episode_gamma[done_env_id] = 1.
         # backward
 
-        for i in range(self.steps_num-1, 0-1, -1):
-            if i == self.steps_num - 1:
-                self.env.compute_actor_loss_grad()
-            if i < self.max_episode_length[0]:
-                action = actions[i].clone().detach().cpu().numpy()
-            else:
-                action = None
-            self.env.step_grad(action)
+        # for i in range(self.steps_num-1, 0-1, -1):
+        #     if i == self.steps_num - 1:
+        #         self.env.compute_actor_loss_grad()
+        #     if i < self.max_episode_length[0]:
+        #         action = actions[i].clone().detach().cpu().numpy()
+        #     else:
+        #         action = None
+        #     self.env.step_grad(action)
 
-        action_grad = self.env.env_method("get_grad")
+        # action_grad = self.env.get_grad(self.episode_length)
 
 
         actor_loss /= self.steps_num * self.num_envs

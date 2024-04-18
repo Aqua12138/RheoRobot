@@ -197,7 +197,7 @@ class GatheringSandEnv(FluidEnv):
     def step_grad(self, action):
         action *= 0.35 * 2e-2
         action.clip(self.action_range[0], max=self.action_range[1])
-        self.taichi_env.step_grad(action)
+        # self.taichi_env.step_grad(action)
 
     def initialize_trajectory(self, s: int):
         self.taichi_env.reset_grad()
@@ -216,6 +216,7 @@ class GatheringSandEnv(FluidEnv):
     def compute_actor_loss_grad(self):
         self.taichi_env.compute_actor_loss_grad()
 
-    def get_grad(self):
-        return self.agent.get_grad(5)
+    def get_grad(self, n):
+        # a = self.agent.get_grad(n)
+        return 1
 
