@@ -24,7 +24,7 @@ def get_args():
     parser.add_argument("--cfg_file", type=str, default=None)
     parser.add_argument("--renderer_type", type=str, default='GGUI')
     parser.add_argument("--logdir", type=str, default="logs/tmp/shac/")
-    parser.add_argument("--device", type=str, default="cuda:0")
+    parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--no-time-stamp", action='store_true', default=False)
     parser.add_argument("--train", action='store_true', default=True)
 

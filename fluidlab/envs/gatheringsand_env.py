@@ -14,14 +14,14 @@ from fluidlab.fluidengine.sensor import *
 from fluidlab.fluidengine.rewards import *
 from gym import spaces
 class GatheringSandEnv(FluidEnv):
-    def __init__(self, version, loss=True, loss_type='diff', seed=None,  renderer_type='GGUI', episode_length=1000, stochastic_init=False, device="cpu", gamma=0.99):
+    def __init__(self, version, loss=True, loss_type='diff', seed=None,  renderer_type='GGUI', max_episode_steps=1000, stochastic_init=False, device="cpu", gamma=0.99):
 
         if seed is not None:
             self.seed(seed)
 
-        self.horizon               = episode_length
-        self.horizon_action        = episode_length
-        self.episode_length        = episode_length
+        self.horizon               = max_episode_steps
+        self.horizon_action        = max_episode_steps
+        self.max_episode_steps        = max_episode_steps
         self.target_file           = None
         self._n_obs_ptcls_per_body = 500
         self.loss                  = loss
@@ -186,13 +186,14 @@ class GatheringSandEnv(FluidEnv):
 
 
         assert self.t <= self.horizon
-        if self.t == self.horizon:
-            done = True
+        if self.t == self.max_episode_steps:
+            done = False
         else:
             done = False
+        # print("t:", self.t)
 
         info = dict()
-        return obs, torch.tensor(reward, dtype=torch.float32), torch.tensor(done, dtype=torch.bool), info
+        return obs, torch.tensor(reward, dtype=torch.float32).to(self.device), torch.tensor(False, dtype=torch.bool).to(self.device), info
 
     def step_grad(self, action):
         action *= 0.35 * 2e-2
@@ -202,6 +203,8 @@ class GatheringSandEnv(FluidEnv):
     def initialize_trajectory(self, s: int):
         self.taichi_env.reset_grad()
         self.taichi_env.reset_step(int(s))
+        self.taichi_env.set_state_anytime(self.sim_state, self.sim_substep_global, self.taichi_t)
+        print("save", self.sim_substep_global, self.taichi_t)
         return self.get_sensor_obs()
 
     def update_next_value(self, next_values):
@@ -218,4 +221,8 @@ class GatheringSandEnv(FluidEnv):
 
     def get_grad(self, n):
         return self.agent.get_grad(n)
+    def save_sim_state(self):
+        self.sim_state = self.taichi_env.get_state()["state"]
+        self.sim_substep_global = self.taichi_env.simulator.cur_substep_global
+        self.taichi_t = self.taichi_env.t
 

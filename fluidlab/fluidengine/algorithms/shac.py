@@ -20,6 +20,7 @@ import torch
 from tensorboardX import SummaryWriter
 import yaml
 from collections import OrderedDict
+import pycuda.autoinit
 
 from fluidlab.fluidengine.algorithms.models import actor
 from fluidlab.fluidengine.algorithms.models import critic
@@ -127,7 +128,7 @@ class SHAC:
             "loss": False,
             "loss_type": 'default',
             "renderer_type": cfg["params"]["general"]["renderer_type"],
-            "episode_length": cfg["params"]["diff_env"].get("episode_length", 250),
+            "max_episode_steps": cfg["params"]["diff_env"].get("episode_length", 250),
             "stochastic_init": cfg["params"]["diff_env"].get("stochastic_env", True),
             "device" : cfg["params"]["general"]["device"],
             "gamma" : cfg['params']['config'].get('gamma', 0.99)
@@ -150,7 +151,7 @@ class SHAC:
             for key in list(self.env.observation_space.spaces.keys()):  # 使用list来避免在迭代时修改字典
                 self.num_obs[key] = self.env.observation_space.spaces[key].shape
         self.num_actions = self.env.action_space.shape
-        self.max_episode_length = self.env.get_attr("episode_length", 0)
+        self.max_episode_length = self.env.get_attr("max_episode_steps", 0)
         self.device = cfg["params"]["general"]["device"]
 
         self.gamma = cfg['params']['config'].get('gamma', 0.99)
@@ -275,7 +276,7 @@ class SHAC:
         gamma = torch.ones(self.num_envs, dtype = torch.float32, device = self.device) # debug & critic train
         next_values = torch.zeros((self.steps_num + 1, self.num_envs), dtype = torch.float32, device = self.device) # critic train
         actor_loss = torch.tensor(0., dtype = torch.float32, device = self.device) # debug
-        actions = torch.zeros((self.max_episode_length[0], self.num_envs, 6), dtype = torch.float32, device = self.device)
+        actions = torch.zeros((self.steps_num, self.num_envs, 6), dtype=torch.float32, device=self.device)
 
         with torch.no_grad():
             if self.obs_rms is not None:
@@ -286,7 +287,7 @@ class SHAC:
 
         # initialize trajectory to cut off gradients between episodes.
         # init taichi
-        if self.episode_length >= self.max_episode_length[0]:
+        if self.episode_length >= self.max_episode_length[0] or self.episode_length==0:
             # reset enviroment
             self.episode_length=0
             obs = self.env.reset()
@@ -294,17 +295,18 @@ class SHAC:
         else:
             obs= self.env.initialize_trajectory(self.episode_length)
             self.actor.update_normalization(obs["vector_obs"])
+
         # collect data for critic training
         episode_length=self.episode_length
-        for i in range(episode_length, episode_length+self.steps_num):
+        for i in range(self.steps_num):
             with torch.no_grad():
-                self.obs_buf_grid3D[i%self.steps_num] = obs['gridsensor3'].clone()
-                self.obs_buf_vector[i%self.steps_num] = obs['vector_obs'].clone()
+                self.obs_buf_grid3D[i] = obs['gridsensor3'].clone()
+                self.obs_buf_vector[i] = obs['vector_obs'].clone()
 
             # Taichi forward step action
             actions[i] = self.actor(obs, deterministic = deterministic)
-            action = actions[i].clone().detach().cpu().numpy()
-            obs, rew, done, extra_info = self.env.step(action)
+            actions_clone = actions[i].clone().detach().cpu().numpy()
+            obs, rew, done, extra_info = self.env.step(actions_clone)
 
             # collect data for critic training
             with torch.no_grad():
@@ -326,7 +328,8 @@ class SHAC:
             for id in done_env_ids:
                 # otherwise, use terminal value critic to estimate the long-term performance
                 next_values[i+1, id] = self.target_critic(obs)['extrinsic'].squeeze(-1)
-                clone_value = next_values[i+1].clone().detach()
+                with torch.no_grad():
+                    clone_value = next_values[i+1].clone().detach()
                 self.env.update_next_value(clone_value)  # update next value in taichi
             
             if (next_values[i + 1] > 1e6).sum() > 0 or (next_values[i + 1] < -1e6).sum() > 0:
@@ -379,29 +382,31 @@ class SHAC:
                         self.episode_discounted_loss[done_env_id] = 0.
                         self.episode_length[done_env_id] = 0
                         self.episode_gamma[done_env_id] = 1.
-        # backward
 
-        for i in range(episode_length + self.steps_num-1, episode_length-1, -1):
+        # save the sim state
+        self.env.env_method("save_sim_state")
+
+        # backward
+        for i in range(self.steps_num-1, -1, -1):
             if i == self.steps_num - 1:
                 self.env.env_method("compute_actor_loss_grad")
             if i < self.max_episode_length[0]:
-                action = actions[i].clone().detach().cpu().numpy()
+                with torch.no_grad():
+                    actions_clone = actions[i].clone().detach().cpu().numpy()
             else:
-                action = None
-            self.env.step_grad(action)
+                actions_clone = None
+            self.env.step_grad(actions_clone)
 
 
         # action_grad = self.env.get_grad(self.episode_length)
-        action_grad = np.array(self.env.env_method("get_grad", self.episode_length-1))
-
-
-        # actor_loss /= self.steps_num * self.num_envs
+        action_grads = np.array(self.env.env_method("get_grad", self.episode_length-1))[:, self.episode_length-self.steps_num:self.episode_length, :]
+        actor_loss /= self.steps_num * self.num_envs
             
         # self.actor_loss = actor_loss.detach().cpu().item()
             
         self.step_count += self.steps_num * self.num_envs
 
-        return action_grad
+        return actions, torch.tensor(action_grads, dtype=torch.float32).to(self.device).permute(1, 0, 2)
     
     @torch.no_grad()
     def evaluate_policy(self, num_games, deterministic = False):
@@ -504,27 +509,25 @@ class SHAC:
             self.time_report.start_timer("compute actor loss")
 
             self.time_report.start_timer("forward simulation")
-            actor_loss = self.compute_actor_loss()
+            actions, action_grads = self.compute_actor_loss()
             self.time_report.end_timer("forward simulation")
 
             self.time_report.start_timer("backward simulation")
-            # actor_loss.backward()
+            actions.backward(action_grads)
             self.time_report.end_timer("backward simulation")
 
-            # with torch.no_grad():
-            #     self.grad_norm_before_clip = tu.grad_norm(self.actor.parameters())
-            #     if self.truncate_grad:
-            #         clip_grad_norm_(self.actor.parameters(), self.grad_norm)
-            #     self.grad_norm_after_clip = tu.grad_norm(self.actor.parameters())
-            #
-            #     # sanity check
-            #     if torch.isnan(self.grad_norm_before_clip) or self.grad_norm_before_clip > 1000000.:
-            #         print('NaN gradient')
-            #         raise ValueError
+            with torch.no_grad():
+                self.grad_norm_before_clip = tu.grad_norm(self.actor.parameters())
+                if self.truncate_grad:
+                    clip_grad_norm_(self.actor.parameters(), self.grad_norm)
+                self.grad_norm_after_clip = tu.grad_norm(self.actor.parameters())
+
+                # sanity check
+                if torch.isnan(self.grad_norm_before_clip) or self.grad_norm_before_clip > 1000000.:
+                    print('NaN gradient')
+                    raise ValueError
 
             self.time_report.end_timer("compute actor loss")
-
-            return actor_loss
 
         # main training process
         for epoch in range(self.max_epochs):
@@ -544,8 +547,7 @@ class SHAC:
 
             # train actor
             self.time_report.start_timer("actor training")
-            # self.actor_optimizer.step(actor_closure).detach().item()
-            actor_closure()
+            self.actor_optimizer.step(actor_closure)
             self.time_report.end_timer("actor training")
 
             # train critic
@@ -565,16 +567,16 @@ class SHAC:
                     batch_sample = dataset[i]
                     self.critic_optimizer.zero_grad()
                     training_critic_loss = self.compute_critic_loss(batch_sample)
-                    # training_critic_loss.backward()
+                    training_critic_loss.backward()
                     
                     # ugly fix for simulation nan problem
-                    # for params in self.critic.parameters():
-                    #     params.grad.nan_to_num_(0.0, 0.0, 0.0)
+                    for params in self.critic.parameters():
+                        params.grad.nan_to_num_(0.0, 0.0, 0.0)
 
-                    # if self.truncate_grad:
-                    #     clip_grad_norm_(self.critic.parameters(), self.grad_norm)
-                    #
-                    # self.critic_optimizer.step()
+                    if self.truncate_grad:
+                        clip_grad_norm_(self.critic.parameters(), self.grad_norm)
+
+                    self.critic_optimizer.step()
 
                     total_critic_loss += training_critic_loss
                     batch_cnt += 1
@@ -623,8 +625,8 @@ class SHAC:
                 mean_policy_discounted_loss = np.inf
                 mean_episode_length = 0
             
-            # print('iter {}: ep loss {:.2f}, ep discounted loss {:.2f}, ep len {:.1f}, fps total {:.2f}, value loss {:.2f}, grad norm before clip {:.2f}, grad norm after clip {:.2f}'.format(\
-            #         self.iter_count, mean_policy_loss, mean_policy_discounted_loss, mean_episode_length, self.steps_num * self.num_envs / (time_end_epoch - time_start_epoch), self.value_loss, self.grad_norm_before_clip, self.grad_norm_after_clip))
+            print('iter {}: ep loss {:.2f}, ep discounted loss {:.2f}, ep len {:.1f}, fps total {:.2f}, value loss {:.2f}, grad norm before clip {:.2f}, grad norm after clip {:.2f}'.format(\
+                    self.iter_count, mean_policy_loss, mean_policy_discounted_loss, mean_episode_length, self.steps_num * self.num_envs / (time_end_epoch - time_start_epoch), self.value_loss, self.grad_norm_before_clip, self.grad_norm_after_clip))
 
             self.writer.flush()
         
