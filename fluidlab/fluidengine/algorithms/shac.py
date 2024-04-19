@@ -231,6 +231,9 @@ class SHAC:
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), betas = cfg['params']['config']['betas'], lr = self.actor_lr)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), betas = cfg['params']['config']['betas'], lr = self.critic_lr)
 
+        # torch.nn.utils.clip_grad_norm_(self.actor.parameters(), max_norm=1.0)
+        # torch.nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm=1.0)
+        # torch.nn.utils.clip_grad_norm_(self.target_critic.parameters(), max_norm=1.0)
         # replay buffer
         self.obs_buf_grid3D = torch.zeros((self.steps_num, self.num_envs, *self.num_obs["gridsensor3"]), dtype = torch.float32, device = self.device)
         self.obs_buf_vector = torch.zeros((self.steps_num, self.num_envs, *self.num_obs["vector_obs"]), dtype = torch.float32, device = self.device)
@@ -297,7 +300,6 @@ class SHAC:
             self.actor.update_normalization(obs["vector_obs"])
 
         # collect data for critic training
-
         for i in range(self.steps_num):
             with torch.no_grad():
                 self.obs_buf_grid3D[i] = obs['gridsensor3'].clone()
@@ -387,11 +389,18 @@ class SHAC:
 
         # action_grad = self.env.get_grad(self.episode_length)
         action_grads = np.array(self.env.env_method("get_grad", self.episode_length-1))[:, self.episode_length-self.steps_num:self.episode_length, :]
+        # clip_action_grads = np.linalg.norm(action_grads)
+        # if action_grads > 1:
+        #     clip_action_grads = clip_action_grads * (1 / action_grads)
         actor_loss /= self.steps_num * self.num_envs
             
         self.actor_loss = actor_loss.detach().cpu().item()
             
         self.step_count += self.steps_num * self.num_envs
+
+        grad_norm = np.linalg.norm(action_grads)
+        if grad_norm > 1.0:
+            action_grads = action_grads * (1.0 / grad_norm)
 
         return actions, torch.tensor(action_grads, dtype=torch.float32).to(self.device).permute(1, 0, 2)
     
@@ -491,28 +500,35 @@ class SHAC:
         self.episode_gamma = torch.ones(self.num_envs, dtype = torch.float32, device = self.device)
         
         def actor_closure():
+            # print("before:", tu.grad_norm(self.actor.parameters()))
             self.actor_optimizer.zero_grad()
-
+            # print("after:", tu.grad_norm(self.actor.parameters()))
             self.time_report.start_timer("compute actor loss")
 
             self.time_report.start_timer("forward simulation")
             actions, action_grads = self.compute_actor_loss()
+            # print(action_grads)
             self.time_report.end_timer("forward simulation")
 
             self.time_report.start_timer("backward simulation")
+            print(np.linalg.norm(action_grads))
             actions.backward(action_grads)
             self.time_report.end_timer("backward simulation")
 
             with torch.no_grad():
                 self.grad_norm_before_clip = tu.grad_norm(self.actor.parameters())
+                for name, parameter in self.actor.named_parameters():
+                    if parameter.grad is not None:
+                        print(f"{name} - Grad Mean: {parameter.grad.mean()}, Grad Std: {parameter.grad.std()}")
                 if self.truncate_grad:
                     clip_grad_norm_(self.actor.parameters(), self.grad_norm)
                 self.grad_norm_after_clip = tu.grad_norm(self.actor.parameters())
 
                 # sanity check
-                if torch.isnan(self.grad_norm_before_clip) or self.grad_norm_before_clip > 1000000.:
+                if torch.isnan(self.grad_norm_before_clip) or self.grad_norm_before_clip > 1000000000.:
                     print('NaN gradient')
                     raise ValueError
+
 
             self.time_report.end_timer("compute actor loss")
 
@@ -559,7 +575,7 @@ class SHAC:
                     training_critic_loss.backward()
                     for params in self.critic.parameters():
                         params.grad.nan_to_num_(0.0, 0.0, 0.0)
-
+                    self.grad_norm_before_clip_critic = tu.grad_norm(self.critic.parameters())
                     if self.truncate_grad:
                         clip_grad_norm_(self.critic.parameters(), self.grad_norm)
 

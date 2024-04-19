@@ -65,7 +65,7 @@ class Reward:
         self.rew_acc.grad.fill(0)
 
         self.actor_loss.fill(0)
-        self.actor_loss.grad.fill(1)
+        self.actor_loss.grad.fill(1.0/64.0)
 
         self.rew.fill(0)
         self.rew.grad.fill(0)

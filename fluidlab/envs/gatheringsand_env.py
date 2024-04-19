@@ -26,7 +26,7 @@ class GatheringSandEnv(FluidEnv):
         self._n_obs_ptcls_per_body = 500
         self.loss                  = loss
         self.loss_type             = loss_type
-        self.action_range          = np.array([-0.003, 0.003])
+        self.action_range          = np.array([-0.0003, 0.0003])
         self.renderer_type         = renderer_type
         self.stochastic_init       = stochastic_init
         self.device                = device
@@ -37,7 +37,7 @@ class GatheringSandEnv(FluidEnv):
         self.taichi_env = TaichiEnv(
             dim=3,
             particle_density=1e6,
-            max_substeps_local=500,
+            max_substeps_local=50,
             gravity=(0.0, -9.8, 0.0),
             horizon=self.horizon,
         )
@@ -64,29 +64,48 @@ class GatheringSandEnv(FluidEnv):
 
     def setup_statics(self):
         self.taichi_env.add_static(
-            file='single_wall.obj',
-            pos=(0.5, 0.5, 0.5),
+            file='tank.obj',
+            pos=(0.5, 0.4, 0.5),
             euler=(0.0, 0.0, 0.0),
-            scale=(1, 1, 1),
+            scale=(1.0, 0.92, 0.92),
             material=TANK,
-            has_dynamics=True,
+            has_dynamics=False,
         )
 
     def setup_bodies(self):
         self.taichi_env.add_body(
             type='cube',
-            lower=(0.2, 0.6, 0.45),
-            upper=(0.3, 0.65, 0.55),
+            lower=(0.05, 0.3, 0.17),
+            upper=(0.95, 0.45, 0.83),
             material=WATER,
         )
+        # self.taichi_env.add_body(
+        #     type='mesh',
+        #     file='duck.obj',
+        #     pos=(0.22, 0.5, 0.45),
+        #     scale=(0.10, 0.10, 0.10),
+        #     euler=(0, -75.0, 0.0),
+        #     color=(1.0, 1.0, 0.3, 1.0),
+        #     filling='grid',
+        #     material=RIGID,
+        # )
+        # self.taichi_env.add_body(
+        #     type='mesh',
+        #     file='duck.obj',
+        #     pos=(0.28, 0.5, 0.57),
+        #     scale=(0.10, 0.10, 0.10),
+        #     euler=(0, -95.0, 0.0),
+        #     color=(1.0, 0.5, 0.5, 1.0),
+        #     filling='grid',
+        #     material=RIGID,
+        # )
 
 
     def setup_boundary(self):
-        # do not setup boundary bigger than 1.0 or smaller than 0.0
         self.taichi_env.setup_boundary(
             type='cube',
-            lower=(0.05, 0.05, 0.05),
-            upper=(0.95, 0.95, 0.95),
+            lower=(0.06, 0.3, 0.18),
+            upper=(0.94, 0.95, 0.82),
         )
 
     def setup_renderer(self):
@@ -175,15 +194,15 @@ class GatheringSandEnv(FluidEnv):
         self.taichi_env.reset_grad()
         return self.get_sensor_obs()
 
-    def step(self, action):
-        action *= 0.35 * 2e-2
-        action.clip(self.action_range[0], max=self.action_range[1])
+    def step(self, action: np.ndarray):
+        action *= 0.35 * 2e-3
+        action = np.clip(action, self.action_range[0], self.action_range[1])
+        # print(action)
 
         self.taichi_env.step(action)
 
         obs = self.get_sensor_obs()
         reward = self._get_reward()
-        # print(reward)
 
         self.render("human")
 
@@ -203,9 +222,9 @@ class GatheringSandEnv(FluidEnv):
         self.taichi_env.step_grad(action)
 
     def initialize_trajectory(self, s: int):
+        self.taichi_env.set_state_anytime(self.sim_state, self.sim_substep_global, self.taichi_t)
         self.taichi_env.reset_grad()
         self.taichi_env.reset_step(int(s))
-        self.taichi_env.set_state_anytime(self.sim_state, self.sim_substep_global, self.taichi_t)
         return self.get_sensor_obs()
 
     def update_next_value(self, next_values):

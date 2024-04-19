@@ -2,7 +2,7 @@ type: AgentSensor
 effectors:
   - type: Rigid
     params:
-      init_pos: (0.8, 0.8, 0.8)
+      init_pos: (0.5, 0.5, 0.5)
       init_euler: (0.0, 0.0, 0.0)
       action_dim: 6
       action_scale_p: (1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
@@ -10,10 +10,10 @@ effectors:
     mesh:
       file: plate.obj
       scale: (0.2, 0.2, 0.2)
-      euler: (0.0, 0.0, 0.0)
+      euler: (0.0, 90.0, 0.0)
       material: PLATE
       softness: 100.0
     boundary:
       type: cube
-      lower: (0, 0.62, 0)
-      upper: (1, 1,    1)
+      lower: (0, 0.0, 0)
+      upper: (1, 1, 1)

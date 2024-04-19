@@ -203,7 +203,7 @@ def mem_report():
     print('='*LEN)
 
 def grad_norm(params):
-    grad_norm = 0.
+    grad_norm = torch.tensor(0, dtype=torch.float32)
     for p in params:
         if p.grad is not None:
             grad_norm += torch.sum(p.grad ** 2)

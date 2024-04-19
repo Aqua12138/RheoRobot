@@ -4,7 +4,7 @@ import numpy as np
 import taichi as ti
 from fluidlab.utils.misc import is_on_server
 
-from fluidlab.fluidengine.taichi_env import TaichiEnv
+# from fluidlab.fluidengine.taichi_env import TaichiEnv
 import torch
 
 class Solver:

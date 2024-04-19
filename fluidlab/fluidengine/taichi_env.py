@@ -10,8 +10,8 @@ from fluidlab.configs.macros import *
 from fluidlab.utils.misc import *
 
 
-# ti.init(arch=ti.gpu, device_memory_GB=10, packed=True)
-ti.init(arch=ti.cuda, device_memory_GB=10)
+ti.init(arch=ti.gpu, device_memory_GB=10, packed=True)
+# ti.init(arch=ti.cuda, device_memory_GB=9)
 
 @ti.data_oriented
 class TaichiEnv:
@@ -248,11 +248,8 @@ class TaichiEnv:
         self.simulator.cur_substep_global = cur_substep_global
         self.simulator.set_state(cur_substep_global, state)
 
-        if self.loss:
-            self.loss.reset()
-
         if self.reward:
-            self.reward.reset()
+            self.reward.reset_grad()
     def apply_agent_action_p(self, action_p):
         assert self.agent is not None, 'Environment has no agent to execute action.'
         self.agent.apply_action_p(action_p)
