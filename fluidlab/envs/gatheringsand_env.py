@@ -172,6 +172,7 @@ class GatheringSandEnv(FluidEnv):
         else:
             init_state = self._init_state
             self.taichi_env.set_state(init_state['state'], grad_enabled=True)
+        self.taichi_env.reset_grad()
         return self.get_sensor_obs()
 
     def step(self, action):
@@ -184,6 +185,7 @@ class GatheringSandEnv(FluidEnv):
         reward = self._get_reward()
         # print(reward)
 
+        self.render("human")
 
         assert self.t <= self.horizon
         if self.t == self.max_episode_steps:
@@ -204,7 +206,6 @@ class GatheringSandEnv(FluidEnv):
         self.taichi_env.reset_grad()
         self.taichi_env.reset_step(int(s))
         self.taichi_env.set_state_anytime(self.sim_state, self.sim_substep_global, self.taichi_t)
-        print("save", self.sim_substep_global, self.taichi_t)
         return self.get_sensor_obs()
 
     def update_next_value(self, next_values):
