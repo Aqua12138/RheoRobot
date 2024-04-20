@@ -18,6 +18,8 @@ class GatheringSandEnv(FluidEnv):
 
         if seed is not None:
             self.seed(seed)
+        else:
+            self.seed(random.randint(1, 100))
 
         self.horizon               = max_episode_steps
         self.horizon_action        = max_episode_steps
@@ -75,8 +77,8 @@ class GatheringSandEnv(FluidEnv):
     def setup_bodies(self):
         self.taichi_env.add_body(
             type='cube',
-            lower=(0.05, 0.3, 0.17),
-            upper=(0.95, 0.45, 0.83),
+            lower=(0.55, 0.3, 0.45),
+            upper=(0.60, 0.45, 0.50),
             material=WATER,
         )
         # self.taichi_env.add_body(
@@ -188,6 +190,7 @@ class GatheringSandEnv(FluidEnv):
             # randomize the init state
             init_state = self._init_state
             self.taichi_env.set_state(init_state['state'], grad_enabled=True)
+            self.agent.set_target()
         else:
             init_state = self._init_state
             self.taichi_env.set_state(init_state['state'], grad_enabled=True)
@@ -240,6 +243,7 @@ class GatheringSandEnv(FluidEnv):
         self.taichi_env.compute_actor_loss_grad()
 
     def get_grad(self, n):
+        # print(self.agent.get_grad(n))
         return self.agent.get_grad(n)
     def save_sim_state(self):
         self.sim_state = self.taichi_env.get_state()["state"]

@@ -124,7 +124,7 @@ class SHAC:
         a = 1
         # 额外的环境参数
         env_kwargs = {
-            "seed": cfg["params"]["general"]["seed"],
+            # "seed": cfg["params"]["general"]["seed"],
             "loss": False,
             "loss_type": 'default',
             "renderer_type": cfg["params"]["general"]["renderer_type"],
@@ -517,9 +517,9 @@ class SHAC:
 
             with torch.no_grad():
                 self.grad_norm_before_clip = tu.grad_norm(self.actor.parameters())
-                for name, parameter in self.actor.named_parameters():
-                    if parameter.grad is not None:
-                        print(f"{name} - Grad Mean: {parameter.grad.mean()}, Grad Std: {parameter.grad.std()}")
+                # for name, parameter in self.actor.named_parameters():
+                #     if parameter.grad is not None:
+                #         print(f"{name} - Grad Mean: {parameter.grad.mean()}, Grad Std: {parameter.grad.std()}")
                 if self.truncate_grad:
                     clip_grad_norm_(self.actor.parameters(), self.grad_norm)
                 self.grad_norm_after_clip = tu.grad_norm(self.actor.parameters())

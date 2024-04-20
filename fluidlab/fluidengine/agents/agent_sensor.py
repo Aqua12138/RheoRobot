@@ -34,5 +34,10 @@ class AgentSensor(Agent):
         sensor = sensor_handle(**sensor_cfg, AgentGameObject=self)
         self.sensors.append(sensor)
 
+    def set_target(self):
+        self.target = np.random.uniform(low=(0, 0, 0), high=(1, 1, 1))
+        self.effectors[0].set_target(self.target)
+        print("target:", self.target)
+
 
 

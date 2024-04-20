@@ -2,7 +2,7 @@ params:
   diff_env:
     name: GatheringSand-v0
     stochastic_env: True
-    episode_length: 64 # 必须是steps_num的整数倍
+    episode_length: 1280 # 必须是steps_num的整数倍
     MM_caching_frequency: 16
 
   network:
@@ -34,7 +34,7 @@ params:
     steps_num: 32
     grad_norm: 1.0 
     truncate_grads: True 
-    num_actors: 2
+    num_actors: 6
     save_interval: 400
 
     player:
