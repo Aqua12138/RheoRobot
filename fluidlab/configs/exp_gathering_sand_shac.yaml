@@ -6,20 +6,20 @@ params:
     MM_caching_frequency: 16
 
   network:
-    actor: ActorStochasticPPO # ActorDeterministicMLP
+    actor: ActorDeterministicMLP # ActorDeterministicMLP ActorStochasticPPO
     actor_mlp:
       units: [128, 64, 32]
       activation: elu
 
-    critic: CriticStochasticPPO
+    critic: CriticMLP
     critic_mlp:
       units: [64, 64]
       activation: elu
 
   config:
     name: df_ant_shac
-    actor_learning_rate: 1e-4 # adam
-    critic_learning_rate: 1e-4 # adam
+    actor_learning_rate: 2e-3 # adam
+    critic_learning_rate: 2e-3 # adam
     lr_schedule: linear # ['constant', 'linear']
     target_critic_alpha: 0.2
     obs_rms: True

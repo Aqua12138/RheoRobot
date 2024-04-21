@@ -269,3 +269,6 @@ class TaichiEnv:
 
     def compute_actor_loss_grad(self):
         self.reward.compute_actor_loss_grad()
+
+    def set_next_state_grad(self, grad):
+        self.agent.set_next_state_grad(grad)

@@ -65,20 +65,13 @@ class GatheringSandEnv(FluidEnv):
         self.agent = self.taichi_env.agent
 
     def setup_statics(self):
-        self.taichi_env.add_static(
-            file='tank.obj',
-            pos=(0.5, 0.4, 0.5),
-            euler=(0.0, 0.0, 0.0),
-            scale=(1.0, 0.92, 0.92),
-            material=TANK,
-            has_dynamics=False,
-        )
+        ...
 
     def setup_bodies(self):
         self.taichi_env.add_body(
             type='cube',
             lower=(0.55, 0.3, 0.45),
-            upper=(0.60, 0.45, 0.50),
+            upper=(0.56, 0.31, 0.46),
             material=WATER,
         )
         # self.taichi_env.add_body(
@@ -215,7 +208,6 @@ class GatheringSandEnv(FluidEnv):
         else:
             done = False
         # print("t:", self.t)
-
         info = dict()
         return obs, torch.tensor(reward, dtype=torch.float32).to(self.device), torch.tensor(False, dtype=torch.bool).to(self.device), info
 
@@ -242,11 +234,15 @@ class GatheringSandEnv(FluidEnv):
     def compute_actor_loss_grad(self):
         self.taichi_env.compute_actor_loss_grad()
 
-    def get_grad(self, n):
-        # print(self.agent.get_grad(n))
-        return self.agent.get_grad(n)
+    def get_grad(self, m, n):
+        # print(self.agent.get_grad(m, n))
+        return self.agent.get_grad(m, n)
     def save_sim_state(self):
         self.sim_state = self.taichi_env.get_state()["state"]
         self.sim_substep_global = self.taichi_env.simulator.cur_substep_global
         self.taichi_t = self.taichi_env.t
+
+    def set_next_state_grad(self, grad):
+        self.taichi_env.set_next_state_grad(grad)
+
 

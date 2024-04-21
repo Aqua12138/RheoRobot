@@ -95,6 +95,13 @@ class CustomSubprocVecEnv(SubprocVecEnv):
         for remote, action in zip(target_remotes, actions):
             remote.send(("env_method", ("step_grad", (action, ), method_kwargs)))
         return [remote.recv() for remote in target_remotes]
+
+    def set_next_state_grad(self, grad, indices: VecEnvIndices = None, **method_kwargs):
+        target_remotes = self._get_target_remotes(indices)
+        for id, remote in enumerate(target_remotes):
+            method_args = (grad[id, :], )
+            remote.send(("env_method", ("set_next_state_grad", method_args, method_kwargs)))
+        return [remote.recv() for remote in target_remotes]
 def _flatten_tensor_obs(obs: Union[List[VecEnvObs], Tuple[VecEnvObs]], space: gym.spaces.Space) -> VecEnvTensorObs:
     """
     Flatten observations, depending on the observation space.
@@ -218,9 +225,9 @@ class SHAC:
         self.actor_name = cfg["params"]["network"].get("actor", 'ActorStochasticMLP') # choices: ['ActorDeterministicMLP', 'ActorStochasticMLP']
         self.critic_name = cfg["params"]["network"].get("critic", 'CriticMLP')
         actor_fn = getattr(actor, self.actor_name)
-        self.actor = actor_fn(self.num_obs, self.num_actions, cfg['params']['network'], device=self.device) # 修改为与Ml-Agent same network
+        self.actor = actor_fn(self.num_obs["vector_obs"][0], self.num_actions[0], cfg['params']['network'], device=self.device) # 修改为与Ml-Agent same network
         critic_fn = getattr(critic, self.critic_name)
-        self.critic = critic_fn(self.num_obs, cfg['params']['network'], device = self.device)
+        self.critic = critic_fn(self.num_obs["vector_obs"][0], cfg['params']['network'], device = self.device)
         self.all_params = list(self.actor.parameters()) + list(self.critic.parameters())
         self.target_critic = copy.deepcopy(self.critic)
     
@@ -294,10 +301,10 @@ class SHAC:
             # reset enviroment
             self.episode_length=0
             obs = self.env.reset()
-            self.actor.update_normalization(obs["vector_obs"])
+            # self.actor.update_normalization(obs["vector_obs"])
         else:
             obs= self.env.initialize_trajectory(self.episode_length)
-            self.actor.update_normalization(obs["vector_obs"])
+            # self.actor.update_normalization(obs["vector_obs"])
 
         # collect data for critic training
         for i in range(self.steps_num):
@@ -306,7 +313,7 @@ class SHAC:
                 self.obs_buf_vector[i] = obs['vector_obs'].clone()
 
             # Taichi forward step action
-            actions[i] = self.actor(obs, deterministic = deterministic)
+            actions[i] = self.actor(obs['vector_obs'], deterministic = deterministic)
             with torch.no_grad():
                 actions_clone = actions[i].clone().detach().cpu().numpy()
             obs, rew, done, extra_info = self.env.step(actions_clone)
@@ -316,19 +323,18 @@ class SHAC:
                 raw_rew = rew.clone()
 
             # nomaliazation the observation
-            self.actor.update_normalization(obs['vector_obs'])
-            self.target_critic.update_normalization(obs['vector_obs'])
-            self.critic.update_normalization(obs['vector_obs'])
+            # self.actor.update_normalization(obs['vector_obs'])
+            # self.target_critic.update_normalization(obs['vector_obs'])
+            # self.critic.update_normalization(obs['vector_obs'])
 
             self.episode_length += 1
         
             # done_env_ids = done.nonzero(as_tuple = False).squeeze(-1)
-
-            next_values[i+1] = self.target_critic(obs)['extrinsic'].squeeze(-1)
-            with torch.no_grad():
-                value_clone = next_values[i+1].clone().detach()
-            self.env.update_next_value(value_clone) # update next value in taichi
-
+            obs['vector_obs'].requires_grad_(True)
+            next_values[i+1] = self.target_critic(obs['vector_obs']).squeeze(-1)
+            # with torch.no_grad():
+            #     value_clone = next_values[i+1].clone().detach()
+            # self.env.update_next_value(value_clone) # update next value in taichi
             # done logic
             if (next_values[i + 1] > 1e6).sum() > 0 or (next_values[i + 1] < -1e6).sum() > 0:
                 print('next value error')
@@ -337,8 +343,13 @@ class SHAC:
             rew_acc[i + 1, :] = rew_acc[i, :] + gamma * rew
 
             if i == self.steps_num - 1:
-                actor_loss = actor_loss + (- rew_acc[i + 1, :] - self.gamma * gamma * next_values[i + 1, :]).sum()
+                actor_loss = actor_loss + (- self.gamma * gamma * next_values[i + 1, :]).sum()
+                actor_optimizer_state = self.actor_optimizer.state_dict()
+                actor_loss.backward()
                 self.env.compute_actor_loss()
+                # 传入taichi的obs对应变量中
+                state_grad = obs['vector_obs'].grad.cpu().numpy()
+                self.actor_optimizer.load_state_dict(actor_optimizer_state)
 
             gamma = gamma * self.gamma
             self.env.update_gamma()  # update next value in taichi
@@ -378,17 +389,18 @@ class SHAC:
         # save the sim state
         self.env.env_method("save_sim_state")
 
+        # 把obs_grad传入对应的self.steps_num步骤位置，也就是episode_length时间步
+        self.env.set_next_state_grad(state_grad)
+        self.env.env_method("compute_actor_loss_grad")
         # backward
         for i in range(self.steps_num-1, -1, -1):
-            if i == self.steps_num - 1:
-                self.env.env_method("compute_actor_loss_grad")
             with torch.no_grad():
                 actions_clone = actions[i].clone().detach().cpu().numpy()
             self.env.step_grad(actions_clone)
 
-
+        action_grads = np.array(self.env.env_method("get_grad", self.episode_length-self.steps_num, self.episode_length))
         # action_grad = self.env.get_grad(self.episode_length)
-        action_grads = np.array(self.env.env_method("get_grad", self.episode_length-1))[:, self.episode_length-self.steps_num:self.episode_length, :]
+        # action_grads = np.array(a)[:, self.episode_length-self.steps_num:self.episode_length, :]
         # clip_action_grads = np.linalg.norm(action_grads)
         # if action_grads > 1:
         #     clip_action_grads = clip_action_grads * (1 / action_grads)
@@ -399,8 +411,8 @@ class SHAC:
         self.step_count += self.steps_num * self.num_envs
 
         grad_norm = np.linalg.norm(action_grads)
-        if grad_norm > 1.0:
-            action_grads = action_grads * (1.0 / grad_norm)
+        if grad_norm > 0.1:
+            action_grads = action_grads * (0.1 / grad_norm)
 
         return actions, torch.tensor(action_grads, dtype=torch.float32).to(self.device).permute(1, 0, 2)
     
@@ -467,7 +479,7 @@ class SHAC:
             raise NotImplementedError
             
     def compute_critic_loss(self, batch_sample):
-        predicted_values = self.critic(batch_sample['obs'])['extrinsic'].squeeze(-1)
+        predicted_values = self.critic(batch_sample['obs']['vector_obs']).squeeze(-1)
         target_values = batch_sample['target_values']
         critic_loss = ((predicted_values - target_values) ** 2).mean()
 
@@ -511,7 +523,7 @@ class SHAC:
             self.time_report.end_timer("forward simulation")
 
             self.time_report.start_timer("backward simulation")
-            print(np.linalg.norm(action_grads))
+            # print(np.linalg.norm(action_grads))
             actions.backward(action_grads)
             self.time_report.end_timer("backward simulation")
 
@@ -681,4 +693,6 @@ class SHAC:
         
     def close(self):
         self.writer.close()
-    
+
+
+

@@ -56,7 +56,7 @@ class Effector:
 
         # for rendering purpose only
         self.latest_pos = ti.Vector.field(3, dtype=ti.f32, shape=(1))
-        self.target_pos = ti.Vector.field(3, dtype=ti.f32, shape=())
+        self.target_pos = ti.Vector.field(3, dtype=ti.f32, shape=(1))
 
         self.init_ckpt()
 
@@ -277,9 +277,9 @@ class Effector:
 
     def get_action_grad(self, s, n):
         if self.action_dim > 0:
-            grad = np.zeros((n+1, self.action_dim), dtype=DTYPE_NP)
+            grad = np.zeros((n-s, self.action_dim), dtype=DTYPE_NP)
             self.get_action_v_grad_kernel(s, n, grad)
-            self.get_action_p_grad_kernel(n, grad)
+            # self.get_action_p_grad_kernel(n, grad)
             return grad
         else:
             return None
@@ -291,5 +291,13 @@ class Effector:
     @ti.kernel
     def set_target(self, target: ti.types.ndarray()):
         for i in ti.static(range(3)):
-            self.target_pos[None][i] = target[i]
+            self.target_pos[0][i] = target[i]
+
+    @ti.kernel
+    def set_next_state_grad(self, f: ti.i32, grad: ti.types.ndarray()):
+        for j in ti.static(range(3)):
+            self.pos.grad[f][j] = grad[j]
+        for j in ti.static(range(4)):
+            self.quat.grad[f][j] = grad[j+self.dim]
+
 

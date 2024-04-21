@@ -90,10 +90,10 @@ class Agent:
         for i in range(self.n_effectors-1, -1, -1):
             self.effectors[i].apply_action_p_grad(action_p[self.action_dims[i]:self.action_dims[i+1]])
 
-    def get_grad(self, n):
+    def get_grad(self, m, n):
         grads = []
         for i in range(self.n_effectors):
-            grad = self.effectors[i].get_action_grad(0, n)
+            grad = self.effectors[i].get_action_grad(m, n)
             if grad is not None:
                 grads.append(grad)
         return np.concatenate(grads, axis=1)

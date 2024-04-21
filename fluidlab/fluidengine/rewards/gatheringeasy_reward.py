@@ -36,7 +36,7 @@ class GatheringEasyReward(Reward):
 
     def build(self, sim):
         self.dist_weight = self.weights['dist']
-        self.dist_reward = ti.field(dtype=DTYPE_TI, shape=(self.max_loss_steps,), needs_grad=True)
+        self.dist_reward = ti.field(dtype=DTYPE_TI, shape=(self.max_loss_steps+1,), needs_grad=True)
 
         if self.temporal_range_type == 'last':
             self.temporal_range = [self.max_loss_steps-1, self.max_loss_steps]
@@ -88,15 +88,12 @@ class GatheringEasyReward(Reward):
             # if self.particle_used[f, p] and self.particle_mat[p] == self.matching_mat:
             #     self.dist_reward[s] += ti.abs(self.particle_x[f, p][0] - 0.8)
         for i in ti.static(range(3)):
-            self.dist_reward[s] += ti.abs(self.agent.effectors[0].pos[f][i] - self.agent.effectors[0].target_pos[None][i])
+            self.dist_reward[s+1] += ti.abs(self.agent.effectors[0].pos[f][i] - self.agent.effectors[0].target_pos[1][i])
 
 
     @ti.kernel
     def sum_up_reward_kernel(self, s: ti.i32):
-        if s == 0:
-            self.rew[None] = 0
-        else:
-            self.rew[None] = ((self.dist_reward[s-1] * self.dist_weight) - (self.dist_reward[s] * self.dist_weight))
+        self.rew[None] = ((self.dist_reward[s] * self.dist_weight) - (self.dist_reward[s+1] * self.dist_weight))
 
         # print(s, self.rew[None])
         # print("taichi:", self.rew[None])
@@ -111,7 +108,7 @@ class GatheringEasyReward(Reward):
             self.total_loss[None] += self.step_loss[s]
     @ti.kernel
     def compute_actor_loss_kernel(self, s: ti.i32):
-        self.actor_loss[None] = -self.rew_acc[s+1] - self.gamma[None] * self._gamma * self.next_values[s+1]
+        self.actor_loss[None] = -self.rew_acc[s+1]
         # print("actor_loss:", self.actor_loss[None], "rew_acc:", self.rew_acc[s+1], "gamma:", self.gamma[None], "next_value:", self.next_values[s+1])
 
     def get_final_loss_grad(self):
