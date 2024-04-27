@@ -160,6 +160,7 @@ class TaichiEnv:
     def reset_step(self, s):
         if self.reward is not None:
             self.reward.reset_step(s)
+        self.agent.sensors[0].reset()
 
     def enable_grad(self):
         self.simulator.enable_grad()
@@ -189,9 +190,12 @@ class TaichiEnv:
         if self.reward:
             self.reward.step()
 
+        self.agent.sensors[0].step()
+
         self.t += 1
 
     def step_grad(self, action=None):
+        self.agent.sensors[0].step_grad()
         if self.reward:
             self.reward.step_grad()
         if self.loss:

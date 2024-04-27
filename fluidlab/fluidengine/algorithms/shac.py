@@ -96,10 +96,10 @@ class CustomSubprocVecEnv(SubprocVecEnv):
             remote.send(("env_method", ("step_grad", (action, ), method_kwargs)))
         return [remote.recv() for remote in target_remotes]
 
-    def set_next_state_grad(self, grad, indices: VecEnvIndices = None, **method_kwargs):
+    def set_next_state_grad(self, grads, indices: VecEnvIndices = None, **method_kwargs):
         target_remotes = self._get_target_remotes(indices)
         for id, remote in enumerate(target_remotes):
-            method_args = (grad[id, :], )
+            method_args = (grads[id], )
             remote.send(("env_method", ("set_next_state_grad", method_args, method_kwargs)))
         return [remote.recv() for remote in target_remotes]
 def _flatten_tensor_obs(obs: Union[List[VecEnvObs], Tuple[VecEnvObs]], space: gym.spaces.Space) -> VecEnvTensorObs:
@@ -331,6 +331,7 @@ class SHAC:
         
             # done_env_ids = done.nonzero(as_tuple = False).squeeze(-1)
             obs['vector_obs'].requires_grad_(True)
+            obs['gridsensor3'].requires_grad_(True)
             next_values[i+1] = self.target_critic(obs).squeeze(-1)
             # with torch.no_grad():
             #     value_clone = next_values[i+1].clone().detach()
@@ -348,7 +349,12 @@ class SHAC:
                 actor_loss.backward()
                 self.env.compute_actor_loss()
                 # 传入taichi的obs对应变量中
-                state_grad = obs['vector_obs'].grad.cpu().numpy()
+                state_grad = {}
+                state_grad['vector_obs'] = obs['vector_obs'].grad.cpu().numpy()
+                state_grad['grid_sensor3'] = obs['gridsensor3'].grad.cpu().numpy()
+                # 假设state_grad是原始的字典
+                state_grads = [{key: value[i] for key, value in state_grad.items()} for i in range(self.num_envs)]
+
                 self.actor_optimizer.load_state_dict(actor_optimizer_state)
 
             gamma = gamma * self.gamma
@@ -390,7 +396,7 @@ class SHAC:
         self.env.env_method("save_sim_state")
 
         # 把obs_grad传入对应的self.steps_num步骤位置，也就是episode_length时间步
-        self.env.set_next_state_grad(state_grad)
+        self.env.set_next_state_grad(state_grads)
         self.env.env_method("compute_actor_loss_grad")
         # backward
         for i in range(self.steps_num-1, -1, -1):

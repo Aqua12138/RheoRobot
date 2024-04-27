@@ -47,7 +47,7 @@ class GatheringSandEnv(FluidEnv):
         self.gym_misc()
     def gym_misc(self):
         self.observation_space = spaces.Dict({
-            'gridsensor3': spaces.Box(low=0, high=1, shape=(90, 180, 1), dtype=np.float32),
+            'gridsensor3': spaces.Box(low=0, high=1, shape=(180, 90, 1), dtype=np.float32),
             'vector_obs': spaces.Box(low=0, high=1, shape=(7,), dtype=np.float32),
             # 更多传感器可以继续添加
         })
@@ -164,7 +164,7 @@ class GatheringSandEnv(FluidEnv):
                             "n_particles": self.taichi_env.simulator.n_particles}
         vector_cfg = {"device": self.device}
 
-        self.agent.add_sensor(sensor_handle=GridSensor3D, sensor_cfg=gridsensor3d_cfg)
+        self.agent.add_sensor(sensor_handle=GridSensor3DGrad, sensor_cfg=gridsensor3d_cfg)
         # self.agent.add_sensor(sensor_handle=GridSensor2D, sensor_cfg=gridsensor2d_cfg)
         self.agent.add_sensor(sensor_handle=VectorSensor, sensor_cfg=vector_cfg)
 
