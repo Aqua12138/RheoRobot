@@ -68,22 +68,22 @@ class GatheringSandEnv(FluidEnv):
         ...
 
     def setup_bodies(self):
-        self.taichi_env.add_body(
-            type='cube',
-            lower=(0.55, 0.3, 0.45),
-            upper=(0.56, 0.31, 0.46),
-            material=WATER,
-        )
         # self.taichi_env.add_body(
-        #     type='mesh',
-        #     file='duck.obj',
-        #     pos=(0.22, 0.5, 0.45),
-        #     scale=(0.10, 0.10, 0.10),
-        #     euler=(0, -75.0, 0.0),
-        #     color=(1.0, 1.0, 0.3, 1.0),
-        #     filling='grid',
-        #     material=RIGID,
+        #     type='cube',
+        #     lower=(0.55, 0.3, 0.45),
+        #     upper=(0.56, 0.31, 0.46),
+        #     material=WATER,
         # )
+        self.taichi_env.add_body(
+            type='mesh',
+            file='duck.obj',
+            pos=(0.5, 0.5, 0.5),
+            scale=(0.10, 0.10, 0.10),
+            euler=(0, -75.0, 0.0),
+            color=(1.0, 1.0, 0.3, 1.0),
+            filling='grid',
+            material=RIGID,
+        )
         # self.taichi_env.add_body(
         #     type='mesh',
         #     file='duck.obj',
@@ -99,8 +99,8 @@ class GatheringSandEnv(FluidEnv):
     def setup_boundary(self):
         self.taichi_env.setup_boundary(
             type='cube',
-            lower=(0.06, 0.3, 0.18),
-            upper=(0.94, 0.95, 0.82),
+            lower=(0.06, 0.25, 0.06),
+            upper=(0.94, 0.95, 0.94),
         )
 
     def setup_renderer(self):
@@ -180,10 +180,17 @@ class GatheringSandEnv(FluidEnv):
 
     def reset(self):
         if self.stochastic_init:
+            self.agent.set_target()
             # randomize the init state
             init_state = self._init_state
+
+            random_particle_pos = np.random.uniform((0.1, 0.3, 0.1), (0.9, 0.3, 0.9))
+            delta_pos = random_particle_pos - np.array([0.5, 0.5, 0.5])
+
+            init_state['state']['x'] = self.x + delta_pos
+
             self.taichi_env.set_state(init_state['state'], grad_enabled=True)
-            self.agent.set_target()
+
         else:
             init_state = self._init_state
             self.taichi_env.set_state(init_state['state'], grad_enabled=True)

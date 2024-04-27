@@ -57,6 +57,7 @@ class GatheringEasyReward(Reward):
     def clear_losses(self):
         self.dist_reward.fill(0)
         self.dist_reward.grad.fill(0)
+        self.init_dist_reward_kernel()
 
     def compute_step_reward(self, s, f):
         self.compute_dist_reward_kernel(s, f)
@@ -90,10 +91,17 @@ class GatheringEasyReward(Reward):
         for i in ti.static(range(3)):
             self.dist_reward[s+1] += ti.abs(self.agent.effectors[0].pos[f][i] - self.agent.effectors[0].target_pos[1][i])
 
+    @ti.func
+    def init_dist_reward_kernel(self,):
+        # for p in range(self.n_particles):
+            # if self.particle_used[f, p] and self.particle_mat[p] == self.matching_mat:
+            #     self.dist_reward[s] += ti.abs(self.particle_x[f, p][0] - 0.8)
+        for i in ti.static(range(3)):
+            self.dist_reward[0] += ti.abs(self.agent.effectors[0].pos[0][i] - self.agent.effectors[0].target_pos[1][i])
 
     @ti.kernel
     def sum_up_reward_kernel(self, s: ti.i32):
-        self.rew[None] = ((self.dist_reward[s] * self.dist_weight) - (self.dist_reward[s+1] * self.dist_weight))
+        self.rew[None] = ((self.dist_reward[s] * self.dist_weight) - (self.dist_reward[s+1] * self.dist_weight))*100
 
         # print(s, self.rew[None])
         # print("taichi:", self.rew[None])

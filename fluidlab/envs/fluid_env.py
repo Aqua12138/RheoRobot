@@ -48,6 +48,7 @@ class FluidEnv(gym.Env):
             
         self.taichi_env.build()
         self._init_state = self.taichi_env.get_state()
+        self.x = self._init_state['state']['x']
 
         self.setup_sensors()
         
