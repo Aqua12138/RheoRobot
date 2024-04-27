@@ -22,7 +22,10 @@ class CriticMLP(nn.Module):
         self.device = device
 
         self.layer_dims = [obs_dim] + cfg_network['critic_mlp']['units'] + [1]
-
+        self.simple_visual_encoder = encoders.SimpleVisualEncoder(height=90,
+                                                                  width=180,
+                                                                  initial_channels=1,
+                                                                  output_size=256).to(device)  # 视觉输入维度
         init_ = lambda m: model_utils.init(m, nn.init.orthogonal_, lambda x: nn.init.
                         constant_(x, 0), np.sqrt(2))
                         
@@ -40,7 +43,8 @@ class CriticMLP(nn.Module):
         print(self.critic)
 
     def forward(self, observations):
-        return self.critic(observations)
+        cat_obs = torch.cat((self.simple_visual_encoder(observations["gridsensor3"]), observations["vector_obs"]), dim=1)
+        return self.critic(cat_obs)
 
 class CriticStochasticPPO(nn.Module):
     def __init__(self, obs_dim, cfg_network, device='cuda:0'):

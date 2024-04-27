@@ -54,6 +54,10 @@ class ActorStochasticMLP(nn.Module):
         self.device = device
 
         self.layer_dims = [obs_dim] + cfg_network['actor_mlp']['units'] + [action_dim]
+        self.simple_visual_encoder = encoders.SimpleVisualEncoder(height=90,
+                                                                  width=180,
+                                                                  initial_channels=1,
+                                                                  output_size=256).to(device)  # 视觉输入维度
 
         init_ = lambda m: model_utils.init(m, nn.init.orthogonal_, lambda x: nn.init.
                         constant_(x, 0), np.sqrt(2))
@@ -83,7 +87,8 @@ class ActorStochasticMLP(nn.Module):
         return self.logstd
 
     def forward(self, obs, deterministic = False):
-        mu = self.mu_net(obs)
+        cat_obs = torch.cat((self.simple_visual_encoder(obs["gridsensor3"]), obs["vector_obs"]), dim=1)
+        mu = self.mu_net(cat_obs)
 
         if deterministic:
             return mu

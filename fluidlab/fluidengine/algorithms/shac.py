@@ -225,9 +225,9 @@ class SHAC:
         self.actor_name = cfg["params"]["network"].get("actor", 'ActorStochasticMLP') # choices: ['ActorDeterministicMLP', 'ActorStochasticMLP']
         self.critic_name = cfg["params"]["network"].get("critic", 'CriticMLP')
         actor_fn = getattr(actor, self.actor_name)
-        self.actor = actor_fn(self.num_obs["vector_obs"][0], self.num_actions[0], cfg['params']['network'], device=self.device) # 修改为与Ml-Agent same network
+        self.actor = actor_fn(self.num_obs["vector_obs"][0]+256, self.num_actions[0], cfg['params']['network'], device=self.device) # 修改为与Ml-Agent same network
         critic_fn = getattr(critic, self.critic_name)
-        self.critic = critic_fn(self.num_obs["vector_obs"][0], cfg['params']['network'], device = self.device)
+        self.critic = critic_fn(self.num_obs["vector_obs"][0]+256, cfg['params']['network'], device = self.device)
         self.all_params = list(self.actor.parameters()) + list(self.critic.parameters())
         self.target_critic = copy.deepcopy(self.critic)
     
@@ -313,7 +313,7 @@ class SHAC:
                 self.obs_buf_vector[i] = obs['vector_obs'].clone()
 
             # Taichi forward step action
-            actions[i] = self.actor(obs['vector_obs'], deterministic = deterministic)
+            actions[i] = self.actor(obs, deterministic = deterministic)
             with torch.no_grad():
                 actions_clone = actions[i].clone().detach().cpu().numpy()
             obs, rew, done, extra_info = self.env.step(actions_clone)
@@ -331,7 +331,7 @@ class SHAC:
         
             # done_env_ids = done.nonzero(as_tuple = False).squeeze(-1)
             obs['vector_obs'].requires_grad_(True)
-            next_values[i+1] = self.target_critic(obs['vector_obs']).squeeze(-1)
+            next_values[i+1] = self.target_critic(obs).squeeze(-1)
             # with torch.no_grad():
             #     value_clone = next_values[i+1].clone().detach()
             # self.env.update_next_value(value_clone) # update next value in taichi
@@ -479,7 +479,7 @@ class SHAC:
             raise NotImplementedError
             
     def compute_critic_loss(self, batch_sample):
-        predicted_values = self.critic(batch_sample['obs']['vector_obs']).squeeze(-1)
+        predicted_values = self.critic(batch_sample['obs']).squeeze(-1)
         target_values = batch_sample['target_values']
         critic_loss = ((predicted_values - target_values) ** 2).mean()
 

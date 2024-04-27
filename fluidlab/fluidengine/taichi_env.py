@@ -10,7 +10,7 @@ from fluidlab.configs.macros import *
 from fluidlab.utils.misc import *
 
 
-ti.init(arch=ti.gpu, device_memory_GB=1, packed=True)
+ti.init(arch=ti.gpu, device_memory_GB=3, packed=True)
 # ti.init(arch=ti.cuda, device_memory_GB=9)
 
 @ti.data_oriented

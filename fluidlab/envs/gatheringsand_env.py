@@ -28,7 +28,7 @@ class GatheringSandEnv(FluidEnv):
         self._n_obs_ptcls_per_body = 500
         self.loss                  = loss
         self.loss_type             = loss_type
-        self.action_range          = np.array([-0.0003, 0.0003])
+        self.action_range          = np.array([-0.007, 0.007])
         self.renderer_type         = renderer_type
         self.stochastic_init       = stochastic_init
         self.device                = device
@@ -39,7 +39,7 @@ class GatheringSandEnv(FluidEnv):
         self.taichi_env = TaichiEnv(
             dim=3,
             particle_density=1e6,
-            max_substeps_local=50,
+            max_substeps_local=200,
             gravity=(0.0, -9.8, 0.0),
             horizon=self.horizon,
         )
@@ -191,7 +191,7 @@ class GatheringSandEnv(FluidEnv):
         return self.get_sensor_obs()
 
     def step(self, action: np.ndarray):
-        action *= 0.35 * 2e-3
+        action *= 0.35 * 2e-2
         action = np.clip(action, self.action_range[0], self.action_range[1])
         # print(action)
 
