@@ -89,7 +89,8 @@ class GatheringEasyReward(Reward):
             # if self.particle_used[f, p] and self.particle_mat[p] == self.matching_mat:
             #     self.dist_reward[s] += ti.abs(self.particle_x[f, p][0] - 0.8)
         for i in ti.static(range(3)):
-            self.dist_reward[s+1] += ti.abs(self.agent.effectors[0].pos[f][i] - self.agent.effectors[0].target_pos[1][i])
+            self.dist_reward[s+1] += ti.abs(self.agent.effectors[0].pos[f][i] - self.particle_x[f, 50][i])
+
 
     @ti.func
     def init_dist_reward_kernel(self,):
@@ -97,7 +98,7 @@ class GatheringEasyReward(Reward):
             # if self.particle_used[f, p] and self.particle_mat[p] == self.matching_mat:
             #     self.dist_reward[s] += ti.abs(self.particle_x[f, p][0] - 0.8)
         for i in ti.static(range(3)):
-            self.dist_reward[0] += ti.abs(self.agent.effectors[0].pos[0][i] - self.agent.effectors[0].target_pos[1][i])
+            self.dist_reward[0] += ti.abs(self.agent.effectors[0].pos[0][i] - self.particle_x[0, 50][i])
 
     @ti.kernel
     def sum_up_reward_kernel(self, s: ti.i32):
