@@ -51,11 +51,6 @@ class GatheringSandEnv(FluidEnv):
             'vector_obs': spaces.Box(low=0, high=1, shape=(7,), dtype=np.float32),
             # 更多传感器可以继续添加
         })
-        # if self.taichi_env.agent is not None:
-        #     self.action_space = Box(DTYPE_NP(self.action_range[0]), DTYPE_NP(self.action_range[1]), (self.taichi_env.agent.action_dim,), dtype=DTYPE_NP)
-        # else:
-        #     self.action_space = None
-        # self.observation_space = None
         self.action_space = spaces.Box(low=0, high=1, shape=(6,), dtype=np.float32)
 
     def setup_agent(self):
@@ -138,7 +133,7 @@ class GatheringSandEnv(FluidEnv):
             reward_cls=GatheringEasyReward,
             type=self.loss_type,
             matching_mat=WATER,
-            weights={'dist': 0.1},
+            weights={'dist': 100},
             gamma=self.gamma
         )
 

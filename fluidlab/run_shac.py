@@ -53,9 +53,7 @@ def main():
 
         traj_optimizer = shac.SHAC(cfg)
         traj_optimizer.train()
-        # demo: call other method of env
-        # vec_env.env_method("reset_grad")
-        # obs = vec_env.reset()
+
 
 
 if __name__ == '__main__':

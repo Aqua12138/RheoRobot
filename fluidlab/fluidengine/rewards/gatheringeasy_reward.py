@@ -91,7 +91,6 @@ class GatheringEasyReward(Reward):
         for i in ti.static(range(3)):
             self.dist_reward[s+1] += ti.abs(self.agent.effectors[0].pos[f][i] - self.particle_x[f, 50][i])
 
-
     @ti.func
     def init_dist_reward_kernel(self,):
         # for p in range(self.n_particles):
@@ -102,10 +101,7 @@ class GatheringEasyReward(Reward):
 
     @ti.kernel
     def sum_up_reward_kernel(self, s: ti.i32):
-        self.rew[None] = ((self.dist_reward[s] * self.dist_weight) - (self.dist_reward[s+1] * self.dist_weight))*100
-
-        # print(s, self.rew[None])
-        # print("taichi:", self.rew[None])
+        self.rew[None] = ((self.dist_reward[s] * self.dist_weight) - (self.dist_reward[s+1] * self.dist_weight))
 
     @ti.kernel
     def compute_reward_kernel(self, s: ti.i32):
@@ -118,11 +114,10 @@ class GatheringEasyReward(Reward):
     @ti.kernel
     def compute_actor_loss_kernel(self, s: ti.i32):
         self.actor_loss[None] = -self.rew_acc[s+1]
-        # print("actor_loss:", self.actor_loss[None], "rew_acc:", self.rew_acc[s+1], "gamma:", self.gamma[None], "next_value:", self.next_values[s+1])
 
     def get_final_loss_grad(self):
         self.compute_total_loss_kernel.grad(self.temporal_range[0], self.temporal_range[1])
-        # self.debug_grad(self.temporal_range[0], self.temporal_range[1])
+
 
     @ti.kernel
     def debug_grad(self, f: ti.i32):
