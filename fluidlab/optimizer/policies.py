@@ -24,7 +24,7 @@ class ActionsPolicy:
         return self.actions_v[i]
 
 class KeyboardPolicy:
-    def __init__(self, init_p, v_lin=0.003, v_ang=0.03):
+    def __init__(self, init_p=None, v_lin=0.003, v_ang=0.03):
         self.actions_p = init_p
         self.keys_activated = set()
         self.linear_v_mag = v_lin

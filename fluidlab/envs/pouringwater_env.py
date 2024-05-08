@@ -13,17 +13,17 @@ from fluidlab.fluidengine.losses import *
 from fluidlab.fluidengine.sensor import *
 from fluidlab.fluidengine.rewards import *
 from gym import spaces
-class GatheringSandEnv(FluidEnv):
+class PouringWaterEnv(FluidEnv):
     def __init__(self, version, loss=True, loss_type='diff', seed=None,  renderer_type='GGUI', max_episode_steps=1000, stochastic_init=False, device="cpu", gamma=0.99):
 
         if seed is not None:
             self.seed(seed)
         else:
-            self.seed(random.randint(1, 100))
+            ...
 
         self.horizon               = max_episode_steps
         self.horizon_action        = max_episode_steps
-        self.max_episode_steps        = max_episode_steps
+        self.max_episode_steps     = max_episode_steps
         self.target_file           = None
         self._n_obs_ptcls_per_body = 500
         self.loss                  = loss
@@ -52,45 +52,28 @@ class GatheringSandEnv(FluidEnv):
             # 更多传感器可以继续添加
         })
         self.action_space = spaces.Box(low=0, high=1, shape=(6,), dtype=np.float32)
-
     def setup_agent(self):
         agent_cfg = CfgNode(new_allowed=True)
-        agent_cfg.merge_from_file(get_cfg_path('agent_gatheringsand.yaml'))
+        agent_cfg.merge_from_file(get_cfg_path('agent_pouringwater.yaml'))
         self.taichi_env.setup_agent(agent_cfg)
         self.agent = self.taichi_env.agent
-
     def setup_statics(self):
-        ...
-
-    def setup_bodies(self):
-        # self.taichi_env.add_body(
-        #     type='cube',
-        #     lower=(0.55, 0.3, 0.45),
-        #     upper=(0.56, 0.31, 0.46),
-        #     material=WATER,
-        # )
-        self.taichi_env.add_body(
-            type='mesh',
-            file='duck.obj',
-            pos=(0.5, 0.5, 0.5),
-            scale=(0.10, 0.10, 0.10),
-            euler=(0, -75.0, 0.0),
-            color=(1.0, 1.0, 0.3, 1.0),
-            filling='grid',
-            material=RIGID,
+        self.taichi_env.add_static(
+            file='tank.obj',
+            pos=(0.5, 0.4, 0.5),
+            euler=(0.0, 0.0, 0.0),
+            scale=(0.2, 0.3, 0.2),
+            material=TANK,
+            has_dynamics=False,
         )
-        # self.taichi_env.add_body(
-        #     type='mesh',
-        #     file='duck.obj',
-        #     pos=(0.28, 0.5, 0.57),
-        #     scale=(0.10, 0.10, 0.10),
-        #     euler=(0, -95.0, 0.0),
-        #     color=(1.0, 0.5, 0.5, 1.0),
-        #     filling='grid',
-        #     material=RIGID,
-        # )
-
-
+    def setup_bodies(self):
+        self.taichi_env.add_body(
+            type='cylinder',
+            center=(0.5, 0.55, 0.5),
+            height=0.05,
+            radius=0.03,
+            material=MILK,
+        )
     def setup_boundary(self):
         self.taichi_env.setup_boundary(
             type='cube',
@@ -120,20 +103,12 @@ class GatheringSandEnv(FluidEnv):
                 light_lookat=(0.5, 0.5, 0.49),
             )
 
-    def setup_loss(self):
-        self.taichi_env.setup_loss(
-            loss_cls=GatheringEasyLoss,
-            type=self.loss_type,
-            matching_mat=WATER,
-            weights={'dist': 0.1}
-        )
-
     def setup_reward(self):
         self.taichi_env.setup_reward(
-            reward_cls=GatheringEasyReward,
+            reward_cls=PouringReward,
             type=self.loss_type,
             matching_mat=WATER,
-            weights={'dist': 100},
+            weights={'dist': 1000},
             gamma=self.gamma
         )
 
@@ -160,7 +135,6 @@ class GatheringSandEnv(FluidEnv):
         vector_cfg = {"device": self.device}
 
         self.agent.add_sensor(sensor_handle=GridSensor3DGrad, sensor_cfg=gridsensor3d_cfg)
-        # self.agent.add_sensor(sensor_handle=GridSensor2D, sensor_cfg=gridsensor2d_cfg)
         self.agent.add_sensor(sensor_handle=VectorSensor, sensor_cfg=vector_cfg)
 
     def trainable_policy(self, optim_cfg, init_range):
@@ -179,13 +153,12 @@ class GatheringSandEnv(FluidEnv):
             # randomize the init state
             init_state = self._init_state
 
-            random_particle_pos = np.random.uniform((0.1, 0.3, 0.1), (0.9, 0.3, 0.9))
+            random_particle_pos = np.random.uniform((0.1, 0.5, 0.1), (0.9, 0.9, 0.9))
             random_agent_pos = np.random.uniform((0.1, 0.1, 0.1), (0.9, 0.9, 0.9))
-            delta_pos = random_particle_pos - np.array([0.5, 0.5, 0.5])
+            delta_pos = random_particle_pos - np.array([0.5, 0.55, 0.5])
 
             init_state['state']['x'] = self.x + delta_pos
-            init_state['state']['agent'][0][0:3] = random_agent_pos
-
+            init_state['state']['agent'][0][0:3] = random_particle_pos
 
             self.taichi_env.set_state(init_state['state'], grad_enabled=True)
 
@@ -222,15 +195,9 @@ class GatheringSandEnv(FluidEnv):
         self.taichi_env.step_grad(action)
 
     def initialize_trajectory(self, s: int):
-        # reset sensor, sensor grad
         self.taichi_env.set_state_anytime(self.sim_state, self.sim_substep_global, self.taichi_t)
-
-        # reset sensor grad, reward grad(self.rew_acc[s], self.gamma.fill(1.0), self.actor_loss.fill(0.0), dist)
         self.taichi_env.reset_grad()
-
-        # reset sensor reward(除了dist)
         self.taichi_env.reset_step(int(s))
-
         return self.get_sensor_obs()
 
     def update_next_value(self, next_values):
@@ -255,5 +222,33 @@ class GatheringSandEnv(FluidEnv):
 
     def set_next_state_grad(self, grad):
         self.taichi_env.set_next_state_grad(grad)
+
+    def demo_policy(self, user_input=False):
+        if user_input:
+            # init_p = self.agents_state
+            return KeyboardPolicy_vxy_wz(v_lin=0.007, v_ang=0.01)
+        else:
+            comp_actions_p = np.zeros((1, self.agent.action_dim))
+            comp_actions_v = np.zeros((self.horizon_action, self.agent.action_dim))
+            init_p = np.array([0.15, 0.65, 0.5])
+            x_range = 0.7
+            current_p = np.array(init_p)
+            amp_range = np.array([0.15, 0.25])
+            for i in range(self.horizon_action):
+                target_i = i + 1
+                target_x = init_p[0] + target_i/self.horizon_action*x_range
+                target_y = init_p[1]
+                cycles = 3
+                target_rad = target_i/self.horizon_action*(np.pi*2)*cycles
+                target_amp = amp_range[1] - np.abs((target_i*2/self.horizon_action) - 1) * (amp_range[1] - amp_range[0])
+                target_z = np.sin(target_rad)*target_amp+0.5
+                target_p = np.array([target_x, target_y, target_z])
+
+                comp_actions_v[i] = target_p - current_p
+                current_p += comp_actions_v[i]
+
+            comp_actions_p[0] = init_p
+            comp_actions = np.vstack([comp_actions_v, comp_actions_p])
+            return ActionsPolicy(comp_actions)
 
 

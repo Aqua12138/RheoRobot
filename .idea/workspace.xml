@@ -5,13 +5,19 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="2bbba59c-73a5-4ef2-a53c-b67cee0f9c5c" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/fluidlab/configs/exp_pouringWater.yaml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/fluidlab/configs/exp_pouring_water_shac.yaml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/fluidlab/envs/configs/agent_pouringwater.yaml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/fluidlab/envs/pouringwater_env.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/fluidlab/fluidengine/rewards/pouring_reward.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sinkhorn.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/fluidlab/configs/exp_gathering_sand_shac.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/configs/exp_gathering_sand_shac.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/fluidlab/envs/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/envs/__init__.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/fluidlab/envs/gatheringsand_env.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/envs/gatheringsand_env.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/fluidlab/fluidengine/algorithms/models/actor.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/fluidengine/algorithms/models/actor.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/fluidlab/fluidengine/algorithms/shac.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/fluidengine/algorithms/shac.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/fluidlab/fluidengine/rewards/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/fluidengine/rewards/__init__.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/fluidlab/fluidengine/sensor/vectorSensor.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/fluidengine/sensor/vectorSensor.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test.py" beforeDir="false" afterPath="$PROJECT_DIR$/test.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/fluidlab/optimizer/policies.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/optimizer/policies.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -58,7 +64,7 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "git-widget-placeholder": "reach__task__demo",
-    "last_opened_file_path": "/home/zhx/PycharmProjects/fluids/FluidLab-test",
+    "last_opened_file_path": "/home/zhx/PycharmProjects/fluids/FluidLab-5-7/fluidlab/configs",
     "nodejs_package_manager_path": "npm",
     "settings.editor.selected.configurable": "preferences.lookFeel",
     "vue.rearranger.settings.migration": "true"
@@ -66,12 +72,15 @@
 }]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/fluidlab/configs" />
       <recent name="$PROJECT_DIR$/fluidlab/fluidengine/rewards" />
+      <recent name="$PROJECT_DIR$/fluidlab/envs/configs" />
+      <recent name="$PROJECT_DIR$/fluidlab/envs" />
     </key>
   </component>
   <component name="RunManager" selected="Python.run_shac">
     <configuration name="run" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
-      <module name="FluidLab" />
+      <module name="FluidLab-test" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <envs>
@@ -83,7 +92,7 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/fluidlab/run.py" />
-      <option name="PARAMETERS" value="--cfg_file configs/exp_gathering_easy.yaml --exp_name exp_gathering_easy" />
+      <option name="PARAMETERS" value="--cfg_file configs/exp_pouringWater.yaml --renderer_type GGUI --user_input --record" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -104,7 +113,28 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/fluidlab/run_shac.py" />
-      <option name="PARAMETERS" value="--cfg_file configs/exp_gathering_sand_shac.yaml --train" />
+      <option name="PARAMETERS" value="--cfg_file configs/exp_pouring_water_shac.yaml --train" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="sinkhorn" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="FluidLab-test" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/sinkhorn.py" />
+      <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -150,11 +180,13 @@
     <list>
       <item itemvalue="Python.run_shac" />
       <item itemvalue="Python.run" />
+      <item itemvalue="Python.sinkhorn" />
       <item itemvalue="Python.test" />
       <item itemvalue="Python 测试.Python 测试 (test.py 内)" />
     </list>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.sinkhorn" />
         <item itemvalue="Python.test" />
         <item itemvalue="Python 测试.Python 测试 (test.py 内)" />
       </list>
@@ -325,6 +357,11 @@
           <url>file://$PROJECT_DIR$/fluidlab/fluidengine/algorithms/models/actor.py</url>
           <line>90</line>
           <option name="timeStamp" value="324" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/fluidlab/fluidengine/rewards/pouring_reward.py</url>
+          <line>56</line>
+          <option name="timeStamp" value="325" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>
