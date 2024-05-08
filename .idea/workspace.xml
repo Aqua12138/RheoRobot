@@ -5,19 +5,14 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="2bbba59c-73a5-4ef2-a53c-b67cee0f9c5c" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/fluidlab/configs/exp_pouringWater.yaml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/fluidlab/configs/exp_pouring_water_shac.yaml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/fluidlab/envs/configs/agent_pouringwater.yaml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/fluidlab/envs/pouringwater_env.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/fluidlab/fluidengine/rewards/pouring_reward.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/sinkhorn.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/fluidlab/envs/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/envs/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/fluidlab/configs/exp_gathering_sand_shac.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/configs/exp_gathering_sand_shac.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/fluidlab/envs/gatheringsand_env.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/envs/gatheringsand_env.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/fluidlab/fluidengine/algorithms/shac.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/fluidengine/algorithms/shac.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/fluidlab/fluidengine/rewards/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/fluidengine/rewards/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/fluidlab/fluidengine/sensor/vectorSensor.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/fluidengine/sensor/vectorSensor.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/fluidlab/optimizer/policies.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/optimizer/policies.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/fluidlab/fluidengine/rewards/gatheringeasy_reward.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/fluidengine/rewards/gatheringeasy_reward.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/fluidlab/fluidengine/rewards/pouring_reward.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/fluidengine/rewards/pouring_reward.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/fluidlab/fluidengine/rewards/reward.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/fluidengine/rewards/reward.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/fluidlab/fluidengine/taichi_env.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/fluidengine/taichi_env.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -113,7 +108,7 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/fluidlab/run_shac.py" />
-      <option name="PARAMETERS" value="--cfg_file configs/exp_pouring_water_shac.yaml --train" />
+      <option name="PARAMETERS" value="--cfg_file configs/exp_gathering_sand_shac.yaml --train" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />

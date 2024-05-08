@@ -20,10 +20,11 @@ class Reward:
         self._gamma = gamma
 
         self.rew = ti.field(dtype=DTYPE_TI, shape=(), needs_grad=True)
-        self.rew_acc = ti.field(dtype=DTYPE_TI, shape=(self.max_loss_steps+1,), needs_grad=True)
+        self.rew_acc = ti.field(dtype=DTYPE_TI, shape=(33,), needs_grad=True)
         self.actor_loss = ti.field(dtype=DTYPE_TI, shape=(), needs_grad=True)
-        self.next_values = ti.field(dtype=DTYPE_TI, shape=(self.max_loss_steps+1,), needs_grad=False)
+        self.next_values = ti.field(dtype=DTYPE_TI, shape=(33,), needs_grad=False)
         self.gamma = ti.field(dtype=DTYPE_TI, shape=(), needs_grad=False)
+        self.s = 0
 
 
     def build(self, sim):
@@ -77,11 +78,6 @@ class Reward:
     @ti.kernel
     def clear_losses(self):
         pass
-    @ti.kernel
-    def reset_step(self, s: ti.i32):
-        self.rew_acc[s] = 0.0
-        self.gamma.fill(1.0)
-        self.actor_loss.fill(0.0)
 
     def reset(self):
         self.clear_loss()
@@ -89,12 +85,14 @@ class Reward:
 
     def step(self):
         # compute loss for step self.sim.cur_step_global-1
-        self.compute_step_reward(self.sim.cur_step_global-1, self.sim.cur_substep_local)
+        self.s = self.s+1
+        self.compute_step_reward(self.s-1, self.sim.cur_substep_local)
         # print("step:", self.sim.cur_step_global-1)
 
     def step_grad(self):
         # compute loss for step self.sim.cur_step_global-1
-        self.compute_step_reward_grad(self.sim.cur_step_global-1, self.sim.cur_substep_local)
+        self.compute_step_reward_grad(self.s-1, self.sim.cur_substep_local)
+        self.s = self.s-1
         # print("step_grad:", self.sim.cur_step_global - 1)
 
     def step_next_values(self, next_value):

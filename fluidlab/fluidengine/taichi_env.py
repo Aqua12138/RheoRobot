@@ -157,11 +157,6 @@ class TaichiEnv:
         if self.reward is not None:
             self.reward.reset_grad()
 
-    def reset_step(self, s):
-        if self.reward is not None:
-            self.reward.reset_step(s)
-        self.agent.sensors[0].reset()
-
     def enable_grad(self):
         self.simulator.enable_grad()
 
@@ -253,7 +248,7 @@ class TaichiEnv:
         self.simulator.set_state(cur_substep_global, state)
 
         if self.reward:
-            self.reward.reset_grad()
+            self.reward.reset()
     def apply_agent_action_p(self, action_p):
         assert self.agent is not None, 'Environment has no agent to execute action.'
         self.agent.apply_action_p(action_p)

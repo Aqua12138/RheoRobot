@@ -414,7 +414,7 @@ class SHAC:
         self.env.env_method("save_sim_state")
 
         # 把obs_grad传入对应的self.steps_num步骤位置，也就是episode_length时间步
-        #       self.env.set_next_state_grad(state_grads)
+        # self.env.set_next_state_grad(state_grads)
         self.env.env_method("compute_actor_loss_grad")
         # backward
         for i in range(self.steps_num-1, -1, -1):

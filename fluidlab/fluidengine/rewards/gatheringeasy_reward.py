@@ -36,7 +36,7 @@ class GatheringEasyReward(Reward):
 
     def build(self, sim):
         self.dist_weight = self.weights['dist']
-        self.dist_reward = ti.field(dtype=DTYPE_TI, shape=(self.max_loss_steps+1,), needs_grad=True)
+        self.dist_reward = ti.field(dtype=DTYPE_TI, shape=(33,), needs_grad=True)
 
         if self.temporal_range_type == 'last':
             self.temporal_range = [self.max_loss_steps-1, self.max_loss_steps]
@@ -58,6 +58,7 @@ class GatheringEasyReward(Reward):
         self.dist_reward.fill(0)
         self.dist_reward.grad.fill(0)
         self.init_dist_reward_kernel()
+        # print("clear losses")
 
     def compute_step_reward(self, s, f):
         self.compute_dist_reward_kernel(s, f)

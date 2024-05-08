@@ -29,7 +29,7 @@ class PouringReward(Reward):
 
     def build(self, sim):
         self.dist_weight = self.weights['dist']
-        self.dist_reward = ti.field(dtype=DTYPE_TI, shape=(self.max_loss_steps+1,), needs_grad=True)
+        self.dist_reward = ti.field(dtype=DTYPE_TI, shape=(33,), needs_grad=True)
 
         super().build(sim)
 
@@ -60,7 +60,19 @@ class PouringReward(Reward):
     def clear_losses(self):
         self.dist_reward.fill(0)
         self.dist_reward.grad.fill(0)
+
+        self.C.fill(0)
+        self.u.fill(0)
+        self.v.fill(0)
+        self.pi.fill(0)
+
+        self.C.grad.fill(0)
+        self.u.grad.fill(0)
+        self.v.grad.fill(0)
+        self.pi.grad.fill(0)
+
         self.init_dist_reward_kernel()
+
 
     @ti.kernel
     def clear_gradients(self):
@@ -70,9 +82,8 @@ class PouringReward(Reward):
         for i in range(self.N):
             self.u.grad[i] = 0.0
             self.v.grad[i] = 0.0
-    def compute_step_reward(self, s, f):
+    def compute_step_reward(self, s):
         self.clear_gradients()
-
         self.init_sinkhorn_kernel()
         self.compute_cost_matrix(f)
         self.update_potentials_kernel()
@@ -81,7 +92,7 @@ class PouringReward(Reward):
         self.sum_up_reward_kernel(s)
         self.compute_reward_kernel(s)
 
-    def compute_step_reward_grad(self, s, f):
+    def compute_step_reward_grad(self, s):
         self.compute_reward_kernel.grad(s)
         self.sum_up_reward_kernel.grad(s)
         self.compute_sinkhorn_distance.grad(s)

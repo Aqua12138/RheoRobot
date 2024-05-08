@@ -229,7 +229,7 @@ class GatheringSandEnv(FluidEnv):
         self.taichi_env.reset_grad()
 
         # reset sensor reward(除了dist)
-        self.taichi_env.reset_step(int(s))
+        # self.taichi_env.reset_step(int(s))
 
         return self.get_sensor_obs()
 
