@@ -89,7 +89,7 @@ class ActorStochasticMLP(nn.Module):
     def forward(self, obs, deterministic = False):
         cat_obs = torch.cat((self.simple_visual_encoder(obs["gridsensor3"]), obs["vector_obs"]), dim=1)
         mu = self.mu_net(cat_obs)
-
+        # print(mu)
         if deterministic:
             return mu
         else:
@@ -98,6 +98,7 @@ class ActorStochasticMLP(nn.Module):
             # sample = mu + eps * std
             dist = Normal(mu, std)
             sample = dist.rsample()
+            # sample = mu + torch.randn_like(mu) * std
             return sample
     
     def forward_with_dist(self, obs, deterministic = False):

@@ -180,9 +180,12 @@ class GatheringSandEnv(FluidEnv):
             init_state = self._init_state
 
             random_particle_pos = np.random.uniform((0.1, 0.3, 0.1), (0.9, 0.3, 0.9))
+            random_agent_pos = np.random.uniform((0.1, 0.1, 0.1), (0.9, 0.9, 0.9))
             delta_pos = random_particle_pos - np.array([0.5, 0.5, 0.5])
 
             init_state['state']['x'] = self.x + delta_pos
+            init_state['state']['agent'][0][0:3] = random_agent_pos
+
 
             self.taichi_env.set_state(init_state['state'], grad_enabled=True)
 

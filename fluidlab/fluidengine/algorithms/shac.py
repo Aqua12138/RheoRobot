@@ -182,7 +182,7 @@ class SHAC:
                 for value in self.num_obs.values():
                     self.obs_rms.append(RunningMeanStd(shape=value, device = self.device))
             else:
-                self.obs_rms = RunningMeanStd(shape=self.num_obs, device = self.device) # obs 归一化,暂时不需要
+                self.obs_rms = RunningMeanStd(shape=self.num_obs, device = self.device) #
             
         self.ret_rms = None
         if cfg['params']['config'].get('ret_rms', False):
@@ -306,6 +306,15 @@ class SHAC:
             obs= self.env.initialize_trajectory(self.episode_length)
             # self.actor.update_normalization(obs["vector_obs"])
 
+        if self.obs_rms is not None:
+            # update obs rms
+            with torch.no_grad():
+                self.obs_rms[0].update(obs['gridsensor3'])
+                self.obs_rms[1].update(obs['vector_obs'])
+            # normalize the current obs
+            obs['gridsensor3'] = obs_rms[0].normalize(obs['gridsensor3'])
+            obs['vector_obs'] = obs_rms[1].normalize(obs['vector_obs'])
+
         # collect data for critic training
         for i in range(self.steps_num):
             with torch.no_grad():
@@ -330,6 +339,15 @@ class SHAC:
             self.episode_length += 1
         
             # done_env_ids = done.nonzero(as_tuple = False).squeeze(-1)
+            if self.obs_rms is not None:
+                # update obs rms
+                with torch.no_grad():
+                    self.obs_rms[0].update(obs['gridsensor3'])
+                    self.obs_rms[1].update(obs['vector_obs'])
+                # normalize the current obs
+                obs['gridsensor3'] = obs_rms[0].normalize(obs['gridsensor3'])
+                obs['vector_obs'] = obs_rms[1].normalize(obs['vector_obs'])
+
             obs['vector_obs'].requires_grad_(True)
             obs['gridsensor3'].requires_grad_(True)
             next_values[i+1] = self.target_critic(obs).squeeze(-1)
@@ -396,7 +414,7 @@ class SHAC:
         self.env.env_method("save_sim_state")
 
         # 把obs_grad传入对应的self.steps_num步骤位置，也就是episode_length时间步
-        # self.env.set_next_state_grad(state_grads)
+        self.env.set_next_state_grad(state_grads)
         self.env.env_method("compute_actor_loss_grad")
         # backward
         for i in range(self.steps_num-1, -1, -1):
@@ -405,7 +423,7 @@ class SHAC:
             self.env.step_grad(actions_clone)
 
         action_grads = np.array(self.env.env_method("get_grad", self.episode_length-self.steps_num, self.episode_length))
-        # action_grad = self.env.get_grad(self.episode_length)
+        # action_grad = self.env.get_bugrad(self.episode_length)
         # action_grads = np.array(a)[:, self.episode_length-self.steps_num:self.episode_length, :]
         # clip_action_grads = np.linalg.norm(action_grads)
         # if action_grads > 1:

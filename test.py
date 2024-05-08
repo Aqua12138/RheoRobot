@@ -1,67 +1,29 @@
 import torch
 import torch.nn as nn
-import numpy as np
-import taichi as ti
 
-# init taichi
-arch = ti.cuda
-ti.init(arch=arch)
-
-
-@ti.kernel
-def test_grad(
-        x: ti.types.ndarray(),
-        y: ti.types.ndarray(),
-):
-    for i in range(x.shape[0]):
-        for j in range(x.shape[1]):
-            y[i, j] = 3 * x[i, j]
-
-
-class GradTest(nn.Module):
+# 定义神经网络结构
+class SimpleNeuralNetwork(nn.Module):
     def __init__(self):
-        super(GradTest, self).__init__()
-
-        self._test_grad = test_grad
-
-        class _module_function(torch.autograd.Function):
-
-            @staticmethod
-            def forward(ctx, x):
-                y = torch.zeros_like(
-                    x,
-                    requires_grad=True
-                )
-
-                self._test_grad(x, y)
-                ctx.save_for_backward(x, y)
-
-                return y
-
-            @staticmethod
-            def backward(ctx, dy):
-                x, y = ctx.saved_tensors
-                y.grad = dy
-
-                self._test_grad.grad(x, y)
-
-                return x.grad
-
-        self._module_function = _module_function.apply
+        super(SimpleNeuralNetwork, self).__init__()
+        self.layer1 = nn.Linear(10, 20)  # 输入层到隐藏层1，假设输入特征维度是10
+        self.layer2 = nn.Linear(20, 30)  # 隐藏层1到隐藏层2
+        self.output_layer = nn.Linear(30, 5)  # 隐藏层2到输出层，假设有5个类别
 
     def forward(self, x):
-        return self._module_function(x.contiguous())
+        x = torch.relu(self.layer1(x))
+        x = torch.relu(self.layer2(x))
+        x = self.output_layer(x)
+        return x
 
+# 创建模型实例
+model = SimpleNeuralNetwork()
 
-if __name__ == "__main__":
-    x = torch.ones((20, 30), dtype=torch.float32, requires_grad=True).cuda()
+# 假设输入数据的batch size为4，每个样本特征维度为10
+input_data = torch.zeros(4, 10)  # 随机生成一些输入数据
 
-    grad_test = GradTest()
-    y = grad_test(x)
+# 通过网络计算输出结果
+output_data = model(input_data)
 
-    L1_loss = nn.L1Loss()
-    loss = L1_loss(x, y)
-    print('loss:', loss)
-
-    loss.backward()  # error: Exporting data to external array (such as numpy array) not supported in AutoDiff for now
-    print('grad: ', x.grad[0])
+# 打印输入和输出的维度
+print("Input shape:", input_data)  # 应显示torch.Size([4, 10])
+print("Output shape:", output_data)  # 应显示torch.Size([4, 5])
