@@ -140,7 +140,7 @@ class GridSensor3DGrad(GridSensor):
             self.grid_sensor[s, i, j, k].distance = 0.0
     def step(self):
         self.s = self.s+1
-        self.clear_grid_sensor(self.s)
+        # self.clear_grid_sensor(self.s)
         self.transform_point_particle(self.s, self.sim.cur_substep_local)
         self.compute_lat_lon_particle(self.s)
         self.normal_distance_particle(self.s)
@@ -149,7 +149,7 @@ class GridSensor3DGrad(GridSensor):
         self.normal_distance_particle.grad(self.s)
         self.compute_lat_lon_particle.grad(self.s)
         self.transform_point_particle.grad(self.s, self.sim.cur_substep_local)
-        self.clear_grid_sensor.grad(self.s)
+        # self.clear_grid_sensor.grad(self.s)
         self.s = self.s-1
 
         # self.debug(self.sim.cur_step_global-1)
@@ -175,9 +175,9 @@ class GridSensor3DGrad(GridSensor):
                                   self.n_bodies):
             self.grid_sensor.grad[s, i, j, k].distance = grad[i, j, k]
 
-    def reset_grad(self):
-        self.particle_state.grad.fill(0)
-        self.grid_sensor.grad.fill(0)
+    # def reset_grad(self):
+    #     self.particle_state.grad.fill(0)
+    #     self.grid_sensor.grad.fill(0)
 
     def reset(self):
         self.particle_state.fill(0)

@@ -154,9 +154,6 @@ class TaichiEnv:
         if self.loss is not None:
             self.loss.reset_grad()
 
-        if self.reward is not None:
-            self.reward.reset_grad()
-
     def enable_grad(self):
         self.simulator.enable_grad()
 
@@ -237,8 +234,6 @@ class TaichiEnv:
         if self.loss:
             self.loss.reset()
 
-        if self.reward:
-            self.reward.reset()
 
     def set_state_anytime(self, state, cur_substep_global, t):
         # 请传入cur_substep_global时刻的state
@@ -247,8 +242,6 @@ class TaichiEnv:
         self.simulator.cur_substep_global = cur_substep_global
         self.simulator.set_state(cur_substep_global, state)
 
-        if self.reward:
-            self.reward.reset()
     def apply_agent_action_p(self, action_p):
         assert self.agent is not None, 'Environment has no agent to execute action.'
         self.agent.apply_action_p(action_p)

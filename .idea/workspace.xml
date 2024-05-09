@@ -6,11 +6,9 @@
   <component name="ChangeListManager">
     <list default="true" id="2bbba59c-73a5-4ef2-a53c-b67cee0f9c5c" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/fluidlab/configs/exp_gathering_sand_shac.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/configs/exp_gathering_sand_shac.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/fluidlab/envs/gatheringsand_env.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/envs/gatheringsand_env.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/fluidlab/fluidengine/agents/agent_sensor.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/fluidengine/agents/agent_sensor.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/fluidlab/fluidengine/algorithms/shac.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/fluidengine/algorithms/shac.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/fluidlab/fluidengine/rewards/gatheringeasy_reward.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/fluidengine/rewards/gatheringeasy_reward.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/fluidlab/fluidengine/rewards/pouring_reward.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/fluidengine/rewards/pouring_reward.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/fluidlab/fluidengine/rewards/reward.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/fluidengine/rewards/reward.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/fluidlab/fluidengine/taichi_env.py" beforeDir="false" afterPath="$PROJECT_DIR$/fluidlab/fluidengine/taichi_env.py" afterDir="false" />
     </list>

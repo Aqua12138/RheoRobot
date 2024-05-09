@@ -51,11 +51,6 @@ class Reward:
             self.load_target(self.target_file)
 
         self.reset()
-
-    def reset_grad(self):
-        self.rew_acc.grad.fill(0)
-        self.actor_loss.grad.fill(1)
-        self.rew.grad.fill(0)
         
     def load_target(self, path):
         pass

@@ -175,7 +175,6 @@ class GatheringSandEnv(FluidEnv):
 
     def reset(self):
         if self.stochastic_init:
-            self.agent.set_target()
             # randomize the init state
             init_state = self._init_state
 
@@ -192,6 +191,9 @@ class GatheringSandEnv(FluidEnv):
         else:
             init_state = self._init_state
             self.taichi_env.set_state(init_state['state'], grad_enabled=True)
+
+        self.agent.sensors[0].reset()
+        self.taichi_env.reward.reset()
         self.taichi_env.reset_grad()
         return self.get_sensor_obs()
 
@@ -206,7 +208,8 @@ class GatheringSandEnv(FluidEnv):
         reward = self._get_reward()
 
         self.render("human")
-
+        # filename = "/home/zhx/PycharmProjects/fluids/FluidLab-5-7/debug/gridsensor3d/grid_{:03d}.npy".format(self.t)
+        # np.save(filename, obs['gridsensor3'])
         assert self.t <= self.horizon
         if self.t == self.max_episode_steps:
             done = False
@@ -224,12 +227,11 @@ class GatheringSandEnv(FluidEnv):
     def initialize_trajectory(self, s: int):
         # reset sensor, sensor grad
         self.taichi_env.set_state_anytime(self.sim_state, self.sim_substep_global, self.taichi_t)
-
+        self.agent.sensors[0].reset()
+        self.taichi_env.reward.reset()
         # reset sensor grad, reward grad(self.rew_acc[s], self.gamma.fill(1.0), self.actor_loss.fill(0.0), dist)
-        self.taichi_env.reset_grad()
 
-        # reset sensor reward(除了dist)
-        # self.taichi_env.reset_step(int(s))
+        self.taichi_env.reset_grad()
 
         return self.get_sensor_obs()
 

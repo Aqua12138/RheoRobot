@@ -45,12 +45,9 @@ class AgentSensor(Agent):
     def reset_grad(self):
         for i in range(self.n_effectors):
             self.effectors[i].reset_grad()
-        self.sensors[0].reset_grad()
-
     def set_state(self, f, state):
         for i in range(self.n_effectors):
             self.effectors[i].set_state(f, state[i])
-        self.sensors[0].reset()
 
 
 

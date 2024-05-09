@@ -48,10 +48,6 @@ class GatheringEasyReward(Reward):
             self.plateau_count = 0
 
         super().build(sim)
-
-    def reset_grad(self):
-        super().reset_grad()
-        self.dist_reward.grad.fill(0)
         
     @ti.kernel
     def clear_losses(self):
