@@ -7,7 +7,6 @@ from time import time
 from scipy import ndimage
 from fluidlab.configs.macros import *
 
-
 @ti.data_oriented
 class GGUIRenderer:
     def __init__(self,

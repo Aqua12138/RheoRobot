@@ -162,9 +162,9 @@ class FluidEnv(gym.Env):
         info = dict()
         return obs, reward, done, info
 
-    def render(self, mode='human'):
+    def render(self, mode='human', tgt_particles=None):
         assert mode in ['human', 'rgb_array']
-        return self.taichi_env.render(mode)
+        return self.taichi_env.render(mode, tgt_particles)
 
     @property
     def t(self):

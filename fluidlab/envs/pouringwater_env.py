@@ -149,11 +149,10 @@ class PouringWaterEnv(FluidEnv):
 
     def reset(self):
         if self.stochastic_init:
-            self.agent.set_target()
             # randomize the init state
             init_state = self._init_state
 
-            random_particle_pos = np.random.uniform((0.1, 0.5, 0.1), (0.9, 0.9, 0.9))
+            random_particle_pos = np.random.uniform((0.1, 0.6, 0.1), (0.9, 0.9, 0.9))
             random_agent_pos = np.random.uniform((0.1, 0.1, 0.1), (0.9, 0.9, 0.9))
             delta_pos = random_particle_pos - np.array([0.5, 0.55, 0.5])
 
@@ -165,6 +164,8 @@ class PouringWaterEnv(FluidEnv):
         else:
             init_state = self._init_state
             self.taichi_env.set_state(init_state['state'], grad_enabled=True)
+        self.agent.sensors[0].reset()
+        self.taichi_env.reward.reset()
         self.taichi_env.reset_grad()
         return self.get_sensor_obs()
 
@@ -177,7 +178,9 @@ class PouringWaterEnv(FluidEnv):
 
         obs = self.get_sensor_obs()
         reward = self._get_reward()
-
+        # Define the field
+        N = 1  # Number of particles
+        x_target = ti.Vector.field(3, dtype=ti.f32, shape=N)
         self.render("human")
 
         assert self.t <= self.horizon
@@ -195,9 +198,13 @@ class PouringWaterEnv(FluidEnv):
         self.taichi_env.step_grad(action)
 
     def initialize_trajectory(self, s: int):
+        # reset sensor, sensor grad
         self.taichi_env.set_state_anytime(self.sim_state, self.sim_substep_global, self.taichi_t)
+        self.agent.sensors[0].reset()
+        self.taichi_env.reward.reset()
+        # reset sensor grad, reward grad(self.rew_acc[s], self.gamma.fill(1.0), self.actor_loss.fill(0.0), dist)
+
         self.taichi_env.reset_grad()
-        self.taichi_env.reset_step(int(s))
         return self.get_sensor_obs()
 
     def update_next_value(self, next_values):
@@ -251,4 +258,14 @@ class PouringWaterEnv(FluidEnv):
             comp_actions = np.vstack([comp_actions_v, comp_actions_p])
             return ActionsPolicy(comp_actions)
 
+# Define the field
+N = 1  # Number of particles
+x_target = ti.Vector.field(3, dtype=ti.f32, shape=N)
+@ti.kernel
+def init_x_target():
+    for i in x_target:
+        x_target[i] = ti.Vector([0.5, 0.1, 0.5])
+
+# Call the initialization kernel
+init_x_target()
 

@@ -50,7 +50,7 @@ class Reward:
         if self.target_file is not None:
             self.load_target(self.target_file)
 
-        self.reset()
+        # self.reset()
         
     def load_target(self, path):
         pass
@@ -77,6 +77,8 @@ class Reward:
     def reset(self):
         self.clear_loss()
         self.clear_losses()
+        self.set_reward(0)
+        # print("after reset:", self.rew[0])
 
     def step(self):
         # compute loss for step self.sim.cur_step_global-1
