@@ -28,7 +28,8 @@ class PouringWaterEnv(FluidEnv):
         self._n_obs_ptcls_per_body = 500
         self.loss                  = loss
         self.loss_type             = loss_type
-        self.action_range          = np.array([-0.007, 0.007])
+        self.action_range          = np.array([[-0.007, -0.007, -0.007, -0.021, -0.021, -0.021],
+                                              [0.007, 0.007, 0.007, 0.021, 0.021, 0.021]])
         self.renderer_type         = renderer_type
         self.stochastic_init       = stochastic_init
         self.device                = device
@@ -59,12 +60,12 @@ class PouringWaterEnv(FluidEnv):
         self.agent = self.taichi_env.agent
     def setup_statics(self):
         self.taichi_env.add_static(
-            file='tank.obj',
-            pos=(0.5, 0.4, 0.5),
+            file='bowl.obj',
+            pos=(0.5, 0.2, 0.5),
             euler=(0.0, 0.0, 0.0),
-            scale=(0.2, 0.3, 0.2),
+            scale=(0.3, 0.3, 0.3),
             material=TANK,
-            has_dynamics=False,
+            has_dynamics=True,
         )
     def setup_bodies(self):
         self.taichi_env.add_body(
@@ -77,8 +78,8 @@ class PouringWaterEnv(FluidEnv):
     def setup_boundary(self):
         self.taichi_env.setup_boundary(
             type='cube',
-            lower=(0.06, 0.25, 0.06),
-            upper=(0.94, 0.95, 0.94),
+            lower=(0.05, 0.05, 0.05),
+            upper=(0.95, 0.95, 0.95),
         )
 
     def setup_renderer(self):
@@ -179,8 +180,6 @@ class PouringWaterEnv(FluidEnv):
         obs = self.get_sensor_obs()
         reward = self._get_reward()
         # Define the field
-        N = 1  # Number of particles
-        x_target = ti.Vector.field(3, dtype=ti.f32, shape=N)
         self.render("human")
 
         assert self.t <= self.horizon
@@ -233,7 +232,7 @@ class PouringWaterEnv(FluidEnv):
     def demo_policy(self, user_input=False):
         if user_input:
             # init_p = self.agents_state
-            return KeyboardPolicy_vxy_wz(v_lin=0.007, v_ang=0.01)
+            return KeyboardPolicy_vxy_wz(v_lin=0.007, v_ang=0.021)
         else:
             comp_actions_p = np.zeros((1, self.agent.action_dim))
             comp_actions_v = np.zeros((self.horizon_action, self.agent.action_dim))
@@ -259,12 +258,18 @@ class PouringWaterEnv(FluidEnv):
             return ActionsPolicy(comp_actions)
 
 # Define the field
-N = 1  # Number of particles
+N = 8  # Number of particles
 x_target = ti.Vector.field(3, dtype=ti.f32, shape=N)
 @ti.kernel
 def init_x_target():
-    for i in x_target:
-        x_target[i] = ti.Vector([0.5, 0.1, 0.5])
+    x_target[0] = ti.Vector([0.4, 0.0, 0.4])
+    x_target[1] = ti.Vector([0.4, 0.0, 0.6])
+    x_target[2] = ti.Vector([0.4, 0.2, 0.4])
+    x_target[3] = ti.Vector([0.4, 0.2, 0.6])
+    x_target[4] = ti.Vector([0.6, 0.0, 0.4])
+    x_target[5] = ti.Vector([0.6, 0.0, 0.6])
+    x_target[6] = ti.Vector([0.6, 0.2, 0.4])
+    x_target[7] = ti.Vector([0.6, 0.2, 0.6])
 
 # Call the initialization kernel
 init_x_target()

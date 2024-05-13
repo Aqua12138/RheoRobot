@@ -163,7 +163,7 @@ class GGUIRenderer:
                     self.color_target = ti.Vector.field(4, ti.f32, x_target.shape)
                     self.color_target.from_numpy(
                         np.repeat(np.array([COLOR[TARGET]]).astype(np.float32), x_target.shape[0], axis=0))
-                self.scene.particles(x_target, per_vertex_color=self.color_target, radius=self.particle_radius)
+                self.scene.particles(x_target, per_vertex_color=self.color_target, radius=0.05)
 
         # statics
         if len(self.sim.statics) != 0:

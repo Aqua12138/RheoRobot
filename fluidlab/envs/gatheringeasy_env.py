@@ -44,11 +44,11 @@ class GatheringEasyEnv(FluidEnv):
     def setup_statics(self):
         self.taichi_env.add_static(
             file='tank.obj',
-            pos=(0.5, 0.4, 0.5),
+            pos=(0.5, 0.2, 0.5),
             euler=(0.0, 0.0, 0.0),
             scale=(1.0, 0.92, 0.92),
-            material=TANK,
-            has_dynamics=False,
+            material=BOTTLE,
+            has_dynamics=True,
         )
 
     def setup_bodies(self):

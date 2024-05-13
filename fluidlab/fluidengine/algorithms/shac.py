@@ -286,7 +286,7 @@ class SHAC:
         gamma = torch.ones(self.num_envs, dtype = torch.float32, device = self.device) # debug & critic train
         next_values = torch.zeros((self.steps_num + 1, self.num_envs), dtype = torch.float32, device = self.device) # critic train
         actor_loss = torch.tensor(0., dtype = torch.float32, device = self.device) # debug
-        actions = torch.zeros((self.steps_num, self.num_envs, 6), dtype=torch.float32, device=self.device)
+        actions = torch.zeros((self.steps_num, self.num_envs, *self.num_actions), dtype=torch.float32, device=self.device)
 
         with torch.no_grad():
             if self.obs_rms is not None:
@@ -455,7 +455,8 @@ class SHAC:
         games_cnt = 0
         while games_cnt < num_games:
             if self.obs_rms is not None:
-                obs = self.obs_rms.normalize(obs)
+                self.obs_rms[0].update(obs['gridsensor3'])
+                self.obs_rms[1].update(obs['vector_obs'])
 
             actions = self.actor(obs, deterministic = deterministic)
 

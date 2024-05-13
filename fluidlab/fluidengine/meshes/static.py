@@ -82,7 +82,7 @@ class Static(Mesh):
     def collide(self, pos_world, mat_v):
         if ti.static(self.has_dynamics):
             signed_dist = self.sdf(pos_world)
-            if signed_dist <= 0:
+            if signed_dist <= 0.1:
                 normal_vec = self.normal(pos_world)
 
                 # v w.r.t collider

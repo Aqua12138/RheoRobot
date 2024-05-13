@@ -133,10 +133,58 @@ class CubeBoundary(Boundary):
             
         return out
 
+
+# 扩展原有的 CubeBoundary 类
+class ComplexBoundary(CubeBoundary):
+    def __init__(self, lower=(0.05, 0.05, 0.05), upper=(0.95, 0.95, 0.95), **kwargs):
+        super(ComplexBoundary, self).__init__(lower=lower, upper=upper, **kwargs)
+        self.friction_planes = [
+            ([0.4, 0.05, 0.4], [0.4, 0.05, 0.6], [0.4, 0.2, 0.4], [0.4, 0.2, 0.06]),
+            ([0.4, 0.05, 0.4], [0.6, 0.05, 0.4], [0.4, 0.2, 0.4], [0.6, 0.2, 0.04]),
+            ([0.6, 0.05, 0.4], [0.6, 0.05, 0.6], [0.6, 0.2, 0.4], [0.6, 0.2, 0.06]),
+            ([0.4, 0.05, 0.6], [0.6, 0.05, 0.6], [0.4, 0.2, 0.6], [0.6, 0.2, 0.06]),
+            ([0.4, 0.05, 0.4], [0.4, 0.05, 0.6], [0.6, 0.05, 0.6], [0.6, 0.05, 0.4])
+        ]
+        self.friction_coefficient = 0.5  # 设置摩擦系数
+
+    # 判断粒子是否在摩擦平面上
+    def is_on_friction_plane(self, x):
+        for plane in self.friction_planes:
+            # 计算平面的法向量
+            n = np.cross(np.array(plane[0]) - np.array(plane[1]), np.array(plane[0]) - np.array(plane[2]))
+            n /= np.linalg.norm(n)
+            # 计算粒子到平面的距离
+            distance = np.dot(np.array(x) - np.array(plane[0]), n)
+            if np.abs(distance) < 1e-5:  # 粒子在平面上
+                return True, n
+        return False, None
+
+    # 强制施加摩擦碰撞
+    @ti.func
+    def impose_friction_collision(self, x, v, n):
+        v_proj = np.dot(v, n) * n
+        v_tang = v - v_proj
+        v_tang_mag = np.linalg.norm(v_tang)
+        if v_tang_mag > 1e-5:  # 粒子有横向速度
+            v_tang_hat = v_tang / v_tang_mag
+            v_tang_new = v_tang_hat * v_tang_mag * (1 - self.friction_coefficient)
+            v = v_proj + v_tang_new
+        return v
+
+    # 重写 impose_x_v 方法，在检查碰撞时添加摩擦效果
+    @ti.func
+    def impose_x_v(self, x, v):
+        x_new, v = super().impose_x_v(x, v)
+        on_plane, n = self.is_on_friction_plane(x_new)
+        if on_plane:
+            v = self.impose_friction_collision(x_new, v, n)
+        return x_new, v
 def create_boundary(type='cube', **kwargs):
     if type == 'cylinder':
         return CylinderBoundary(**kwargs)
     if type == 'cube':
         return CubeBoundary(**kwargs)
+    if type == 'other':
+        return ComplexBoundary(**kwargs)
     else:
         assert False

@@ -21,7 +21,7 @@ class Mesh:
             pos          = (0.0, 0.0, 0.0),
             euler        = (0.0, 0.0, 0.0),
             scale        = (1.0, 1.0, 1.0),
-            softness     = 0,
+            softness     = 0.00,
             has_dynamics = False
         ):
         self.pos            = eval_str(pos)
